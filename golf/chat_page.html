@@ -1,0 +1,445 @@
+<title>Shane's Caddie</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500&family=Source+Sans+3:wght@400;600;700&display=swap">
+<style>
+:root{
+  --paper:#f3f6f0; --card:#ffffff; --ink:#17201b; --muted:#5d6d63; --line:#d7ded5; --line-strong:#b9c5bb;
+  --fairway:#2e6b4f; --fairway-soft:#e2eee6; --flag:#c9921d; --flag-soft:#f7ecd0;
+  --bad:#b4442f; --good:#2e6b4f; --user:#e7ede8; --focus:#2e6b4f;
+  --display:"Barlow Condensed","Arial Narrow",system-ui,sans-serif;
+  --body:"Source Sans 3",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,"SF Mono",Menlo,monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    color-scheme:dark;
+    --paper:#0e1411; --card:#151e19; --ink:#e3ebe5; --muted:#93a69a; --line:#26332c; --line-strong:#344439;
+    --fairway:#6dbe93; --fairway-soft:#1c2c23; --flag:#e3b23c; --flag-soft:#2d2717;
+    --bad:#e0826d; --good:#6dbe93; --user:#1d2922; --focus:#6dbe93;
+  }
+}
+:root[data-theme="dark"]{
+  color-scheme:dark;
+  --paper:#0e1411; --card:#151e19; --ink:#e3ebe5; --muted:#93a69a; --line:#26332c; --line-strong:#344439;
+  --fairway:#6dbe93; --fairway-soft:#1c2c23; --flag:#e3b23c; --flag-soft:#2d2717;
+  --bad:#e0826d; --good:#6dbe93; --user:#1d2922; --focus:#6dbe93;
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{background:var(--paper);color:var(--ink);font:16px/1.5 var(--body);padding-inline:16px}
+.app{max-width:1180px;margin:0 auto;padding-block:20px 0;display:grid;grid-template-columns:320px minmax(0,1fr);gap:24px;min-height:100%}
+@media (max-width:860px){.app{grid-template-columns:minmax(0,1fr);gap:16px;padding-block:14px 0}}
+
+/* ---------- the card (left rail) ---------- */
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:18px;display:flex;flex-direction:column;gap:18px;align-self:start;position:sticky;top:calc(20px + env(safe-area-inset-top,0px))}
+@media (max-width:860px){.card{position:static}}
+.brand{display:flex;align-items:baseline;justify-content:space-between;gap:8px}
+.brand h1{font:700 30px/1 var(--display);letter-spacing:.01em;margin:0;text-wrap:balance}
+.brand .asof{font:500 12px/1.2 var(--mono);color:var(--muted);text-align:right}
+.eyebrow{font:600 12px/1 var(--display);letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin:0 0 8px}
+.rows{display:grid;grid-template-columns:1fr auto;border-top:1px solid var(--line)}
+.rows > div{padding:8px 0;border-bottom:1px solid var(--line)}
+.rows .lab{font-size:14px;color:var(--muted)}
+.rows .lab small{display:block;font-size:12px;line-height:1.3;color:var(--muted);opacity:.85}
+.rows .val{font:500 20px/1.2 var(--mono);text-align:right;font-variant-numeric:tabular-nums;align-self:center}
+.spark{width:100%;height:auto;display:block}
+.spark text{font:11px var(--mono);fill:var(--muted)}
+.legend{display:flex;gap:14px;font-size:12px;color:var(--muted);margin-top:4px;flex-wrap:wrap}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:50%;background:var(--fairway);vertical-align:-1px;margin-right:5px}
+.legend i.line{border-radius:0;height:2px;width:14px;vertical-align:3px;background:var(--flag)}
+.yardage{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums}
+.yardage th{font:600 11px/1 var(--display);letter-spacing:.1em;text-transform:uppercase;color:var(--muted);text-align:right;padding:0 0 6px}
+.yardage th:first-child,.yardage td:first-child{text-align:left}
+.yardage td{font:14px/1.2 var(--mono);text-align:right;padding:5px 0;border-top:1px solid var(--line)}
+.yardage td.live{color:var(--fairway)}
+.fine{font-size:12px;color:var(--muted);line-height:1.4;margin:6px 0 0}
+details.more summary{cursor:pointer;font-size:13px;color:var(--muted)}
+@media (max-width:860px){.card .hide-sm{display:none}}
+
+/* ---------- chat ---------- */
+.chat{display:flex;flex-direction:column;min-height:calc(100vh - 20px);min-width:0}
+@media (max-width:860px){.chat{min-height:60vh}}
+.thread{flex:1;display:flex;flex-direction:column;gap:18px;padding-bottom:16px}
+.intro{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:20px}
+.intro h2{font:700 26px/1.1 var(--display);margin:0 0 6px;text-wrap:balance}
+.intro p{margin:0 0 14px;color:var(--muted);max-width:62ch}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{font:600 14px/1.2 var(--body);color:var(--ink);background:var(--fairway-soft);border:1px solid transparent;border-radius:999px;padding:8px 13px;cursor:pointer;text-align:left}
+.chip:hover{border-color:var(--fairway)}
+.chip:focus-visible,button:focus-visible,textarea:focus-visible,input:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
+.msg{max-width:100%}
+.msg.user{align-self:flex-end;background:var(--user);border-radius:12px 12px 2px 12px;padding:10px 14px;max-width:min(85%,640px);white-space:pre-wrap;overflow-wrap:anywhere}
+.msg.bot{background:var(--card);border:1px solid var(--line);border-radius:2px 12px 12px 12px;padding:14px 16px;overflow-wrap:anywhere}
+.msg.bot .who{font:600 12px/1 var(--display);letter-spacing:.12em;text-transform:uppercase;color:var(--fairway);margin-bottom:8px;display:flex;gap:8px;align-items:center}
+.msg.bot .who .tier{color:var(--muted);letter-spacing:.06em}
+.answer > :first-child{margin-top:0}.answer > :last-child{margin-bottom:0}
+.answer p,.answer ul,.answer ol{margin:0 0 10px}
+.answer ul,.answer ol{padding-left:22px}
+.answer h1,.answer h2,.answer h3,.answer h4{font:700 18px/1.2 var(--display);letter-spacing:.02em;margin:14px 0 6px}
+.answer code{font:13px var(--mono);background:var(--fairway-soft);padding:1px 4px;border-radius:4px}
+.answer .tbl{overflow-x:auto;margin:6px 0 12px}
+.answer table{border-collapse:collapse;font-size:14px;font-variant-numeric:tabular-nums;min-width:100%}
+.answer th{font:600 12px/1.2 var(--display);letter-spacing:.08em;text-transform:uppercase;color:var(--muted);text-align:left;padding:4px 10px 6px 0;border-bottom:1px solid var(--line-strong)}
+.answer td{padding:5px 10px 5px 0;border-bottom:1px solid var(--line);font-family:var(--mono);font-size:13px}
+.activity{font:12px/1.5 var(--mono);color:var(--muted);margin:0 0 8px;display:flex;flex-direction:column;gap:2px}
+.activity span::before{content:"\21B3  ";color:var(--flag)}
+.thinking{color:var(--muted);font-style:italic}
+.note{font-size:13px;color:var(--muted);margin-top:8px}
+.note.warn{color:var(--bad)}
+
+.composer{position:sticky;bottom:0;background:linear-gradient(to top,var(--paper) 78%,transparent);padding-block:12px calc(12px + env(safe-area-inset-bottom,0px))}
+.box{display:flex;gap:8px;align-items:flex-end;background:var(--card);border:1px solid var(--line-strong);border-radius:12px;padding:8px}
+.box textarea{flex:1;border:0;background:transparent;color:var(--ink);font:16px/1.4 var(--body);resize:none;min-height:26px;max-height:180px;padding:6px 6px;outline:none}
+.btn{font:700 15px/1 var(--display);letter-spacing:.08em;text-transform:uppercase;border:0;border-radius:8px;padding:11px 16px;cursor:pointer;background:var(--fairway);color:var(--card);white-space:nowrap}
+.btn:disabled{opacity:.45;cursor:default}
+.btn.stop{background:var(--bad)}
+.opts{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;font-size:13px;color:var(--muted);margin-top:8px}
+.opts label{display:flex;gap:6px;align-items:center;cursor:pointer}
+.opts button.link{background:none;border:0;color:var(--muted);font:inherit;text-decoration:underline;cursor:pointer;padding:0}
+.banner{background:var(--flag-soft);border:1px solid var(--flag);border-radius:10px;padding:12px 14px;font-size:14px}
+@media (prefers-reduced-motion: reduce){*{scroll-behavior:auto!important;transition:none!important}}
+</style>
+
+<div class="app">
+  <aside class="card" aria-label="Scorecard summary">
+    <div class="brand"><h1>Shane's Caddie</h1><div class="asof" id="asof">loading&hellip;</div></div>
+    <section>
+      <p class="eyebrow">The card</p>
+      <div class="rows" id="kpis"></div>
+    </section>
+    <section class="hide-sm">
+      <p class="eyebrow">Strokes over par, per 9 holes</p>
+      <svg class="spark" id="spark" viewBox="0 0 300 120" role="img" aria-label="Score per 9 holes by round"></svg>
+      <div class="legend"><span><i></i>round</span><span><i class="line"></i>5-round average</span><span>higher = better</span></div>
+    </section>
+    <section class="hide-sm">
+      <p class="eyebrow">Yardage book</p>
+      <table class="yardage" id="yardage"><thead><tr><th>Club</th><th>Median</th><th>Shots</th></tr></thead><tbody></tbody></table>
+      <p class="fine">GPS distance to the next shot, roll included. <span style="color:var(--fairway)">Green</span> = median of live-tracked shots; the rest were tapped on the map after the round.</p>
+    </section>
+  </aside>
+
+  <main class="chat">
+    <div class="thread" id="thread" aria-live="polite">
+      <div class="intro" id="intro">
+        <h2>Ask about your golf</h2>
+        <p id="introText">Claude reads your rounds, hole-by-hole scores, club distances and lesson notes, and answers on your Claude plan.</p>
+        <div class="chips" id="chips"></div>
+      </div>
+    </div>
+    <div class="composer">
+      <div id="banner"></div>
+      <form class="box" id="form" autocomplete="off">
+        <textarea id="q" rows="1" placeholder="Ask about your rounds, holes or clubs&hellip;" aria-label="Your question"></textarea>
+        <button class="btn" id="send" type="submit" disabled>Ask</button>
+      </form>
+      <div class="opts">
+        <label><input type="checkbox" id="deep"> Deeper analysis (slower)</label>
+        <button class="link" type="button" id="clear">Clear chat</button>
+      </div>
+    </div>
+  </main>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/marked/12.0.2/marked.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.1.6/purify.min.js"></script>
+<script>
+(() => {
+"use strict";
+const $ = (id) => document.getElementById(id);
+const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
+
+let DATA = null, sample = null, toolsOk = false, busy = false, ctl = null;
+const turns = [];            // [{role, content}] the conversation this page keeps (Claude keeps nothing)
+const MAX_TURNS = 16;
+
+const SUGGESTIONS = [
+  "Am I improving?",
+  "Which holes at Southborough cost me the most?",
+  "How far do I hit each club?",
+  "Am I losing more strokes getting to the green or putting?",
+  "Compare my July rounds with September",
+  "What should I practice next?",
+];
+
+// ---------------------------------------------------------------- data + card
+function fmtDate(iso){ if(!iso) return "–"; const [y,m,d] = iso.split("-").map(Number); return new Date(y, m-1, d).toLocaleDateString(undefined,{month:"short",day:"numeric"}); }
+
+function renderCard(){
+  $("asof").textContent = DATA.data_through ? "through " + fmtDate(DATA.data_through) : "no rounds yet";
+  const kp = $("kpis"); kp.textContent = "";
+  for (const k of DATA.headline.kpis || []) {
+    const lab = el("div","lab", k.label);
+    if (k.note) lab.append(el("small", null, k.note));
+    kp.append(lab, el("div","val", k.value ?? "–"));
+  }
+  // sparkline: to_par_per9 per round (inverted: better = up) + 5-round average
+  const rs = (DATA.tables.rounds || []).filter(r => typeof r.to_par_per9 === "number");
+  const svg = $("spark"); svg.textContent = "";
+  if (rs.length >= 2) {
+    const W=300,H=120,L=30,R=8,T=8,B=18;
+    const ys = rs.map(r=>r.to_par_per9), lo = Math.floor(Math.min(...ys)/5)*5, hi = Math.ceil(Math.max(...ys)/5)*5 || lo+5;
+    const x = i => L + (W-L-R) * (rs.length===1?0.5:i/(rs.length-1));
+    const y = v => T + (H-T-B) * (v-lo)/((hi-lo)||1);         // larger over-par sits lower
+    const ns = "http://www.w3.org/2000/svg", mk = (t,a)=>{const n=document.createElementNS(ns,t); for(const k in a) n.setAttribute(k,a[k]); return n;};
+    for (const v of [lo, (lo+hi)/2, hi]) {
+      svg.append(mk("line",{x1:L,x2:W-R,y1:y(v),y2:y(v),stroke:"var(--line)","stroke-width":1}));
+      const t = mk("text",{x:L-6,y:y(v)+4,"text-anchor":"end"}); t.textContent = "+"+Math.round(v); svg.append(t);
+    }
+    const avg = rs.map((r,i)=>{ const w = rs.slice(Math.max(0,i-4), i+1).map(q=>q.to_par_per9); return w.reduce((a,b)=>a+b,0)/w.length; });
+    svg.append(mk("polyline",{points:avg.map((v,i)=>x(i)+","+y(v)).join(" "),fill:"none",stroke:"var(--flag)","stroke-width":2.5,"stroke-linejoin":"round"}));
+    rs.forEach((r,i)=>{ const c = mk("circle",{cx:x(i),cy:y(r.to_par_per9),r:r.holes===18?4:3.2,fill:"var(--fairway)"}); const tt = mk("title",{}); tt.textContent = `${fmtDate(r.date)} · ${r.course} · ${r.gross} (+${r.to_par})`; c.append(tt); svg.append(c); });
+    const t1 = mk("text",{x:L,y:H-3}); t1.textContent = fmtDate(rs[0].date);
+    const t2 = mk("text",{x:W-R,y:H-3,"text-anchor":"end"}); t2.textContent = fmtDate(rs[rs.length-1].date);
+    svg.append(t1,t2);
+  }
+  const tb = $("yardage").tBodies[0]; tb.textContent = "";
+  for (const c of DATA.headline.club_medians || []) {
+    const useLive = (c.n_live||0) >= 3 && c.median_live != null;
+    const tr = el("tr");
+    tr.append(el("td",null,c.club), el("td", useLive ? "live" : null, Math.round(useLive ? c.median_live : c.median) + " yd"), el("td",null,String(c.n)));
+    tb.append(tr);
+  }
+  if (!(DATA.headline.club_medians||[]).length) tb.append(Object.assign(el("tr"),{innerHTML:'<td colspan="3">No tracked shots yet.</td>'}));
+}
+
+// ---------------------------------------------------------------- the query tool (runs here, over the published tables)
+const TABLES = ["rounds","holes","shots","events","handicap","courses"];
+const norm = v => typeof v === "string" ? v.trim().toLowerCase() : v;
+function typed(table, col, v){
+  const rows = DATA.tables[table] || [];
+  const sampleVal = rows.find(r => r[col] != null)?.[col];
+  if (typeof sampleVal === "number" && typeof v === "string" && v.trim() !== "" && !isNaN(Number(v))) return Number(v);
+  if (typeof sampleVal === "boolean" && typeof v === "string") return v.toLowerCase() === "true";
+  return v;
+}
+const eq = (a,b) => a === b || (a != null && b != null && norm(String(a)) === norm(String(b)));
+const OPS = {
+  "=": eq, "!=": (a,b) => !eq(a,b),
+  ">": (a,b) => a != null && a > b, ">=": (a,b) => a != null && a >= b,
+  "<": (a,b) => a != null && a < b, "<=": (a,b) => a != null && a <= b,
+  "in": (a,b) => Array.isArray(b) && b.some(x => eq(a,x)),
+  "contains": (a,b) => a != null && norm(Array.isArray(a) ? a.join(" ") : String(a)).includes(norm(String(b))),
+  "between": (a,b) => Array.isArray(b) && b.length === 2 && a != null && a >= b[0] && a <= b[1],
+  "is_null": a => a == null, "not_null": a => a != null,
+};
+function agg(fn, vals, n){
+  if (fn === "count") return n;
+  if (!vals.length) return null;
+  const s = [...vals].sort((a,b)=>a-b), sum = vals.reduce((a,b)=>a+b,0);
+  const r2 = x => Math.round(x*100)/100;
+  return { sum: r2(sum), avg: r2(sum/vals.length), min: s[0], max: s[s.length-1],
+           median: r2(s.length%2 ? s[(s.length-1)/2] : (s[s.length/2-1]+s[s.length/2])/2) }[fn] ?? null;
+}
+function queryTable(input){
+  const table = String(input.table || "");
+  if (!TABLES.includes(table)) throw new Error("table must be one of " + TABLES.join(", "));
+  let rows = DATA.tables[table] || [];
+  const cols = new Set(Object.keys(DATA.dictionary[table] || rows[0] || {}));
+  const known = c => { if (!cols.has(c)) throw new Error(`unknown column "${c}" in ${table}; columns: ${[...cols].join(", ")}`); return c; };
+  for (const f of Array.isArray(input.filters) ? input.filters : []) {
+    const op = OPS[f.op || "="]; if (!op) throw new Error("unknown op " + f.op);
+    const col = known(String(f.column)); const val = Array.isArray(f.value) ? f.value.map(v => typed(table,col,v)) : typed(table,col,f.value);
+    rows = rows.filter(r => op(r[col], val));
+  }
+  const matched = rows.length;
+  const gb = (Array.isArray(input.group_by) ? input.group_by : []).map(c => known(String(c)));
+  const aggs = Array.isArray(input.aggregates) ? input.aggregates : [];
+  if (gb.length || aggs.length) {
+    const groups = new Map();
+    for (const r of rows) { const k = JSON.stringify(gb.map(c => r[c])); if (!groups.has(k)) groups.set(k, []); groups.get(k).push(r); }
+    rows = [...groups.values()].map(g => {
+      const o = {}; gb.forEach(c => o[c] = g[0][c]);
+      for (const a of aggs.length ? aggs : [{fn:"count"}]) {
+        const fn = String(a.fn || "count"); const col = a.column ? known(String(a.column)) : null;
+        const vals = col ? g.map(r => r[col]).filter(v => typeof v === "number") : [];
+        const name = a.as || (col ? `${fn}_${col}` : fn);
+        o[name] = fn === "count" ? (col ? g.filter(r => r[col] != null).length : g.length) : agg(fn, vals, g.length);
+      }
+      return o;
+    });
+  } else if (Array.isArray(input.columns) && input.columns.length) {
+    const cs = input.columns.map(c => known(String(c)));
+    rows = rows.map(r => Object.fromEntries(cs.map(c => [c, r[c]])));
+  }
+  for (const o of [...(Array.isArray(input.order_by) ? input.order_by : [])].reverse()) {
+    const c = String(o.column), d = o.desc ? -1 : 1;
+    rows = [...rows].sort((a,b) => (a[c] == null) - (b[c] == null) || (a[c] < b[c] ? -d : a[c] > b[c] ? d : 0));
+  }
+  const limit = Math.max(1, Math.min(200, Number(input.limit) || 100));
+  let out = rows.slice(0, limit), truncated = rows.length > out.length;
+  while (JSON.stringify(out).length > 28000 && out.length > 5) { out = out.slice(0, Math.floor(out.length*0.7)); truncated = true; }
+  return { table, matched_rows: matched, returned: out.length, truncated, rows: out };
+}
+function getRound(input){
+  const key = String(input.round || input.date || "").trim();
+  if (!key) throw new Error("give round (e.g. r16) or date (YYYY-MM-DD)");
+  const rounds = DATA.tables.rounds.filter(r => r.round === key || r.date === key).slice(0, 3);
+  if (!rounds.length) throw new Error("no round " + key + "; rounds run " + DATA.tables.rounds[0]?.date + " to " + DATA.data_through);
+  return rounds.map(r => ({ ...r,
+    holes: DATA.tables.holes.filter(h => h.round === r.round).map(({round,date,course,...h}) => h),
+    shots: DATA.tables.shots.filter(s => s.round === r.round).map(({round,date,course,...s}) => s) }));
+}
+const TOOLS = [
+  { name: "query_table",
+    description: "Filter, group and aggregate one of Shane's golf tables (rounds, holes, shots, events, handicap, courses; columns are listed in the instructions). Returns matching rows or grouped aggregates. Use it for anything the rounds table in the prompt doesn't already answer: hole-by-hole scoring, club distances, lessons/notes, course cards.",
+    inputSchema: { type: "object", properties: {
+      table: { type: "string", enum: TABLES },
+      filters: { type: "array", items: { type: "object", properties: {
+        column: { type: "string" }, op: { type: "string", enum: Object.keys(OPS) }, value: {} }, required: ["column","op"] } },
+      group_by: { type: "array", items: { type: "string" } },
+      aggregates: { type: "array", items: { type: "object", properties: {
+        fn: { type: "string", enum: ["count","sum","avg","min","max","median"] }, column: { type: "string" }, as: { type: "string" } }, required: ["fn"] } },
+      columns: { type: "array", items: { type: "string" }, description: "columns to return when not grouping" },
+      order_by: { type: "array", items: { type: "object", properties: { column: { type: "string" }, desc: { type: "boolean" } }, required: ["column"] } },
+      limit: { type: "integer", description: "max rows, default 100, max 200" } }, required: ["table"] },
+    execute: (input) => { const r = queryTable(input); logActivity(`${r.table}: ${r.matched_rows} rows${input.group_by?.length || input.aggregates?.length ? " → " + r.returned + " groups" : ""}`); return r; } },
+  { name: "get_round",
+    description: "One round in full: the round's totals plus every hole (par, stroke index, strokes, putts, fairway, GIR) and its tracked shots (club, yards). Look it up by alias (r1 = oldest) or date (YYYY-MM-DD).",
+    inputSchema: { type: "object", properties: { round: { type: "string" }, date: { type: "string" } } },
+    execute: (input) => { const r = getRound(input); logActivity(`round ${r.map(x => fmtDate(x.date) + " " + x.course).join(", ")}`); return r; } },
+];
+
+// ---------------------------------------------------------------- the prompt
+function csv(rows, cols){
+  const esc = v => v == null ? "" : /[",\n]/.test(String(v)) ? `"${String(v).replace(/"/g,'""')}"` : String(v);
+  return [cols.join(","), ...rows.map(r => cols.map(c => esc(r[c])).join(","))].join("\n");
+}
+function instructions(){
+  const d = DATA, rounds = d.tables.rounds;
+  const cols = ["round","date","course","holes","gross","par","to_par","to_par_per9","differential","hi_after","b18_handicap","putts","putts_partial","fairways_hit","fairway_chances","gir","gir_chances","double_plus","triple_plus"];
+  const shown = rounds.length > 120 ? rounds.slice(-120) : rounds;
+  const dict = Object.entries(d.dictionary).map(([t,c]) => `${t}: ` + Object.entries(c).map(([k,v]) => `${k} (${v})`).join("; ")).join("\n");
+  return [
+    `You are ${d.player}'s golf caddie and data analyst, answering inside his personal golf dashboard. Today is ${d.today}; his data runs through ${d.data_through}.`,
+    "",
+    "How to answer:",
+    "- Start with the direct answer in a sentence or two, then the numbers behind it. Keep it short; use a small markdown table only when comparing several items.",
+    toolsOk ? "- Use the tools for anything the rounds table below doesn't cover (hole-by-hole scoring, shots and club distances, lessons and notes, course cards). Query before you claim." : "- Only the rounds table below is available right now (hole and shot detail can't be looked up in this view); say so if a question needs it.",
+    "- Never invent numbers. If the data can't answer (for example putts weren't tracked), say what's missing.",
+    `- Compare scores per 9 holes (to_par_per9) unless he asks otherwise. He has ${rounds.length} rounds, so mention sample size when it matters and don't claim that a lesson or change caused an improvement.`,
+    "- Write dates like \"Sep 24\". He is a beginner with a high handicap: be practical and honest, and suggest specific practice when he asks what to work on.",
+    "",
+    "Notes about the data:", ...d.notes.map(n => "- " + n),
+    "",
+    "Headline figures:", ...(d.headline.kpis || []).map(k => `- ${k.label}: ${k.value}${k.note ? " (" + k.note + ")" : ""}`),
+    d.headline.trend ? "- " + d.headline.trend : "", d.headline.scoring_split ? "- " + d.headline.scoring_split : "",
+    d.headline.lesson_sensitivity ? "- " + d.headline.lesson_sensitivity : "",
+    "",
+    "Club medians (yards): " + (d.headline.club_medians || []).map(c => `${c.club} ${Math.round(c.median)} (n=${c.n}${c.median_live != null && c.n_live >= 3 ? ", live " + Math.round(c.median_live) : ""})`).join("; "),
+    `Lessons and notes logged: ${d.tables.events.length}.`,
+    "",
+    "Tables and columns:", dict,
+    "",
+    `Rounds (${shown.length}${shown.length < rounds.length ? " most recent of " + rounds.length : ""}), oldest first, as CSV:`,
+    csv(shown, cols),
+  ].filter(x => x !== undefined).join("\n");
+}
+
+// ---------------------------------------------------------------- chat UI
+let activityEl = null;
+function logActivity(text){ if (activityEl) { activityEl.hidden = false; activityEl.append(el("span", null, text)); } }
+function renderMarkdown(target, text){
+  const html = window.marked && window.DOMPurify ? DOMPurify.sanitize(marked.parse(text, { breaks: false, gfm: true })) : null;
+  if (html == null) { target.textContent = text; return; }
+  target.innerHTML = html;
+  for (const t of target.querySelectorAll("table")) { const w = el("div","tbl"); t.replaceWith(w); w.append(t); }
+}
+function addUser(text){ const m = el("div","msg user", text); $("thread").append(m); m.scrollIntoView({block:"end",behavior:"smooth"}); }
+function addBot(){
+  const m = el("div","msg bot"); const who = el("div","who","Caddie"); const tier = el("span","tier"); who.append(tier);
+  const act = el("div","activity"); act.hidden = true;
+  const ans = el("div","answer"); ans.append(el("span","thinking","Thinking\u2026"));
+  const note = el("div","note"); note.hidden = true;
+  m.append(who, act, ans, note); $("thread").append(m); m.scrollIntoView({block:"end",behavior:"smooth"});
+  return { m, act, ans, note, tier };
+}
+const COPY = {
+  not_granted: "Chat is off because Claude access wasn't allowed for this page. Reload the page to be asked again.",
+  sampling_disabled: "Claude isn't available on this account.", not_declared: "This page can't reach Claude.",
+  capability_disabled: "Claude isn't available in this view.", capability_removed: "Update the Claude app to use this chat.",
+  rate_limited: "You've hit your Claude usage limit for now. Try again later.",
+  session_expired: "Your Claude session expired. Sign in again, then ask again.",
+  prompt_too_large: "That conversation got too long. Clear the chat and ask again.",
+  refused: "Claude couldn't answer that one. Try asking it differently.",
+  empty_completion: "No answer came back. Try a simpler question.",
+  upstream_error: "The connection to Claude dropped. Ask again.",
+};
+function setBusy(b){
+  busy = b; const send = $("send");
+  send.textContent = b ? "Stop" : "Ask"; send.classList.toggle("stop", b);
+  send.disabled = !b && (!sample || !$("q").value.trim());
+}
+async function ask(text){
+  text = text.trim(); if (!text || busy || !sample || !DATA) return;
+  $("intro").hidden = true; addUser(text);
+  turns.push({ role: "user", content: text });
+  while (turns.length > MAX_TURNS) turns.splice(0, 2);
+  const view = addBot(); activityEl = view.act;
+  ctl = new AbortController(); setBusy(true);
+  let raf = 0, latest = "";
+  const flush = () => { raf = 0; renderMarkdown(view.ans, latest); };
+  try {
+    const opts = { signal: ctl.signal, modelTier: $("deep").checked ? "complex" : "default",
+                   onText: ({ text }) => { latest = text; if (!raf) raf = requestAnimationFrame(flush); } };
+    if (toolsOk) opts.tools = TOOLS; else opts.cache = false;
+    const res = await sample([{ role: "user", content: instructions() }, ...turns], opts);
+    latest = res.text; flush();
+    turns.push({ role: "assistant", content: res.text });
+    if (res.modelTierApplied && res.modelTierApplied !== opts.modelTier) view.tier.textContent = "· " + res.modelTierApplied;
+    if (res.truncated) { view.note.hidden = false; view.note.textContent = "The answer was cut short. Ask for less at a time."; }
+  } catch (e) {
+    const code = e && e.code;
+    if (e && e.text && code !== "refused") renderMarkdown(view.ans, e.text); else view.ans.textContent = "";
+    if (code === "cancelled") { if (!e.text) view.m.remove(); turns.pop(); }
+    else {
+      turns.pop();
+      view.note.hidden = false; view.note.classList.add("warn"); view.note.textContent = COPY[code] || COPY.upstream_error;
+      if (["not_granted","sampling_disabled","not_declared","capability_disabled","capability_removed"].includes(code)) { sample = null; showBanner(COPY[code]); }
+    }
+  } finally { activityEl = null; ctl = null; setBusy(false); }
+}
+function showBanner(text){ const b = $("banner"); b.textContent = ""; if (text) { const d = el("div","banner",text); b.append(d); } }
+
+// ---------------------------------------------------------------- wiring
+const q = $("q");
+q.addEventListener("input", () => { q.style.height = "auto"; q.style.height = Math.min(q.scrollHeight, 180) + "px"; if (!busy) $("send").disabled = !sample || !q.value.trim(); });
+q.addEventListener("keydown", e => { if (e.key === "Enter" && !e.shiftKey && !e.isComposing) { e.preventDefault(); $("form").requestSubmit(); } });
+$("form").addEventListener("submit", e => {
+  e.preventDefault();
+  if (busy) { ctl?.abort(); return; }
+  const text = q.value; q.value = ""; q.style.height = "auto"; ask(text);
+});
+$("clear").addEventListener("click", () => {
+  if (busy) ctl?.abort();
+  turns.length = 0; for (const m of [...$("thread").querySelectorAll(".msg")]) m.remove(); $("intro").hidden = false;
+});
+for (const s of SUGGESTIONS) { const c = el("button","chip",s); c.type = "button"; c.addEventListener("click", () => ask(s)); $("chips").append(c); }
+
+async function boot(){
+  try {
+    const r = await fetch("golf-data.json", { cache: "no-store" });
+    if (!r.ok) throw new Error(r.status);
+    DATA = await r.json();
+    renderCard();
+  } catch (e) {
+    $("asof").textContent = "data missing";
+    showBanner("Couldn't load the golf data file that belongs with this page. Ask Claude Code to republish Shane's Caddie.");
+    return;
+  }
+  const claude = window.claude;
+  sample = claude && typeof claude.use === "function" ? await claude.use("sample").catch(() => null) : null;
+  if (!sample) {
+    showBanner("Open this page in Claude (claude.ai or the Claude app) to chat. The card on the left still works here.");
+    for (const c of $("chips").children) c.disabled = true;
+    return;
+  }
+  const lim = await sample.limits().catch(() => null);
+  toolsOk = !!(lim && lim.tools);
+  if (!toolsOk) $("introText").textContent += " In this view Claude only sees the round totals, not hole or shot detail.";
+  setBusy(false);
+}
+boot();
+})();
+</script>

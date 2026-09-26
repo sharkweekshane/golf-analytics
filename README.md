@@ -387,6 +387,26 @@ always reflect the latest import. Then ask things like *"How did my putts change
 or *"What's my median 9-iron?"* Keep in mind that whatever the tools return goes into that Claude
 conversation.
 
+## Chat page on claude.ai (Shane's Caddie)
+
+<https://claude.ai/artifact/AwShFfn1R8fSb1p6RadvgT> is a private claude.ai page (only your account can
+open it) with a scorecard summary and a chat box. It works on your phone in the Claude app or the browser,
+and its questions run on your Claude plan through the claude.ai `sample` capability, so no API key and no
+API billing. The first question asks you to allow the page to use Claude.
+
+- The page is `golf/chat_page.html`. It reads `golf-data.json`, published next to it and built by
+  `golf chat-data` (`golf/chat.py`): the headline numbers, and tables of rounds, holes, shots (no GPS),
+  lessons/notes, handicap history and course cards. Round ids are the public aliases `r1..rN`, and the file
+  must pass the same privacy check as the public dashboard.
+- Claude sees the headline numbers and the round table with every question, and can call two page
+  functions for detail: `query_table` (filter / group / aggregate any table) and `get_round`.
+- **Freshness.** A scheduled task in the Claude app, *Refresh Shane's Caddie* (nightly around 9:40 pm,
+  while the app is open), runs `golf chat-data` and republishes `golf-data.json` when its `content_sha`
+  changed. To refresh right away, click *Run now* on that task, or ask Claude Code to "refresh Shane's
+  Caddie".
+- Difference from the MCP connection above: the page works anywhere but sees a nightly snapshot; Claude
+  Desktop with `golf mcp` is Mac-only but reads `golf.db` live and can run any SELECT.
+
 ## Privacy
 
 - Everything personal is under `data/` (gitignored): the export archive, `golf.db`, screenshots, notebook

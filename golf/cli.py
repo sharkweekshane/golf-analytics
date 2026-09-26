@@ -1408,6 +1408,19 @@ def build(out: Annotated[Optional[Path], typer.Option(
     _echo(f"{'Public dashboard' if public else 'Dashboard'} written to {path}\nOpen it with: open '{path}'")
 
 
+@app.command("chat-data")
+def chat_data(out: Annotated[Optional[Path], typer.Option(
+                  "--out", help="Folder for golf-data.json (default: data/site/chat/)")] = None) -> None:
+    """Write golf-data.json for the Shane's Caddie chat page on claude.ai (public-safe, privacy-checked)."""
+    from golf.chat import write_bundle
+
+    cfg = get_cfg()
+    with open_db(cfg) as conn:
+        path = write_bundle(conn, cfg, out)
+    _echo(f"Chat data written to {path} ({path.stat().st_size // 1024} KB).\n"
+          "To update the chat page, ask Claude Code to \"refresh Shane's Caddie\" (it republishes golf-data.json).")
+
+
 @app.command()
 def serve(port: Annotated[int, typer.Option("--port")] = 8765,
           open_browser: Annotated[bool, typer.Option("--open", help="Open the browser.")] = False) -> None:
