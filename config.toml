@@ -32,7 +32,7 @@ interval_seconds = 300
 # GitHub Pages: https://sharkweekshane.github.io/golf-analytics/ (the gh-pages branch holds only the built site).
 # Public: rounds, scores, stats, the unofficial handicap, lessons and note summaries.
 # Never public: file paths, screenshots and notebook photos, GPS coordinates, API cost, this Mac's name.
-enabled = false        # turned on once the GitHub repo and its gh-pages branch exist
+enabled = true         # repo + gh-pages set up 2026-09-25
 auto = true            # republish after each new 18Birdies export is imported
 remote = "origin"      # git remote of this project (or a URL)
 branch = "gh-pages"    # golf publish force-pushes, so it refuses any other branch
