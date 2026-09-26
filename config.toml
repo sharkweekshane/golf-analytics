@@ -27,6 +27,9 @@ pattern = "18Birdies_archive*.json"
 # Seconds between scans of the foreground `golf watch` loop (golf serve scans every 60 s;
 # the LaunchAgent runs when a watched folder changes, and every 30 minutes).
 interval_seconds = 300
+# The LaunchAgent's own Python (a --copies venv), so macOS folder permissions granted to it
+# don't extend to the shared Anaconda interpreter.
+python = "~/.venvs/golf-agent/bin/python"
 
 [publish]
 # GitHub Pages: https://sharkweekshane.github.io/golf-analytics/ (the gh-pages branch holds only the built site).
