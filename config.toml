@@ -1,0 +1,41 @@
+[player]
+# Name as it appears on 18Birdies scorecards (used to pick your row out of group scorecards).
+name = "Shane"
+timezone = "America/New_York"
+
+[llm]
+# Model is a config value on purpose: once a golden set of hand-checked rounds exists,
+# `golf eval` compares models and you pick the default.
+model = "claude-opus-5"
+effort = "high"
+# Server-side refusal fallbacks (beta). Harmless for golf content; auto-disabled if rejected.
+use_fallbacks = true
+max_tokens = 32000
+
+[notes]
+# Apple Notes folder to read. Must be under the iCloud account, not "On My iPhone".
+apple_notes_folder = "Golf"
+
+[paths]
+data_dir = "data"
+
+[watch]
+# Folders `golf watch` (the LaunchAgent and `golf serve`) look in for 18Birdies_archive*.json.
+# Your files there are only read: never moved, renamed or deleted.
+dirs = ["~/Downloads", "~/Library/Mobile Documents/com~apple~CloudDocs/Downloads"]
+pattern = "18Birdies_archive*.json"
+# Seconds between scans of the foreground `golf watch` loop (golf serve scans every 60 s;
+# the LaunchAgent runs when a watched folder changes, and every 30 minutes).
+interval_seconds = 300
+
+[publish]
+# GitHub Pages: https://sharkweekshane.github.io/golf-analytics/ (the gh-pages branch holds only the built site).
+# Public: rounds, scores, stats, the unofficial handicap, lessons and note summaries.
+# Never public: file paths, screenshots and notebook photos, GPS coordinates, API cost, this Mac's name.
+enabled = false        # turned on once the GitHub repo and its gh-pages branch exist
+auto = true            # republish after each new 18Birdies export is imported
+remote = "origin"      # git remote of this project (or a URL)
+branch = "gh-pages"    # golf publish force-pushes, so it refuses any other branch
+site_url = "https://sharkweekshane.github.io/golf-analytics/"
+# golf publish only force-pushes to the GitHub repo site_url names (github.com/sharkweekshane/golf-analytics).
+allow_any_remote = false

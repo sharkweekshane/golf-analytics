@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+{% block title %}Review events{% endblock %}
+{% block content %}
+<h1>Review timeline events <span class="badge">{{ events|length }} waiting</span></h1>
+<p class="sub">Each event is quoted from its source with the date Python resolved and why. Accept it, fix it, merge it into a duplicate, or reject it. Only accepted events reach the dashboard and the lesson analysis.</p>
+
+{% if not events %}
+<section class="card"><p class="muted">Nothing waiting. <a href="/timeline">See the timeline</a>.</p></section>
+{% endif %}
+
+{% for ev in events %}
+<section class="card event" id="ev-{{ ev.event_id }}">
+  <div class="row" style="justify-content: space-between;">
+    <h2 style="margin:0">{{ ev.event_type.replace("_", " ") }}{% if ev.is_planned %} (planned){% endif %} &middot; {{ ev.date or "no date" }}</h2>
+    <span class="small muted">{{ ev.doc_title or ev.doc_id }} <span class="badge">{{ ev.doc_source }}</span>{% if ev.queue_reason == "orphaned" %} <span class="badge W">text edited after review</span>{% endif %}</span>
+  </div>
+  {% if ev.source_excerpt %}<blockquote class="excerpt">{{ ev.source_excerpt }}</blockquote>{% endif %}
+  {% if ev.image %}<details><summary>Notebook page photo</summary><img class="nb-photo" src="/files/{{ ev.image }}" alt="Notebook page" loading="lazy"></details>{% endif %}
+  <dl class="kv">
+    <dt>Date</dt><dd>{{ ev.date or "?" }} ({{ ev.date_precision or "?" }}{% if ev.date_start and ev.date_end and ev.date_start != ev.date_end %}: {{ ev.date_start }} to {{ ev.date_end }}{% endif %}; from {{ (ev.date_source or "?").replace("_", " ") }})</dd>
+    {% if ev.date_reasoning %}<dt>Why</dt><dd>{{ ev.date_reasoning }}</dd>{% endif %}
+    <dt>Summary</dt><dd>{{ ev.summary or "" }}</dd>
+    {% if ev.coach %}<dt>Coach</dt><dd>{{ ev.coach }}</dd>{% endif %}
+    {% if ev.location %}<dt>Where</dt><dd>{{ ev.location }}</dd>{% endif %}
+    {% if ev.focus_text %}<dt>Focus</dt><dd>{{ ev.focus_text }}</dd>{% endif %}
+    {% if ev.equipment %}<dt>Equipment</dt><dd>{% for q in ev.equipment %}{{ q.action }} {{ q.category }} {{ q.brand }} {{ q.model }}{% if q.replaces %} (replaces {{ q.replaces }}){% endif %}{% if not loop.last %}; {% endif %}{% endfor %}</dd>{% endif %}
+    <dt>Confidence</dt><dd>{{ ev.confidence or "?" }}{% if not ev.excerpt_verified %} &middot; <span class="status-error">quote not found verbatim in the source</span>{% endif %}</dd>
+    {% if ev.flags %}<dt>Flags</dt><dd>{% for f in ev.flags %}<div><span class="badge W">{{ f.code }}</span> {{ f.message }}</div>{% endfor %}</dd>{% endif %}
+  </dl>
+
+  {% if ev.queue_reason == "orphaned" %}
+  <p class="small">You reviewed this entry, then its text was edited in the note, so the old reading no longer matches anything.
+    {% if ev.carry_to %}Carry your review over to the event that replaced it, or dismiss this one.{% else %}Nothing close enough replaced it: dismiss it, or merge it into another event.{% endif %}</p>
+  <div class="actions">
+    {% if ev.carry_to %}<form method="post" action="/review/events"><input type="hidden" name="event_id" value="{{ ev.event_id }}"><input type="hidden" name="carry_to" value="{{ ev.carry_to }}"><button class="primary" type="submit" name="action" value="carry">Carry my earlier review over</button></form>{% endif %}
+    <form method="post" action="/review/events"><input type="hidden" name="event_id" value="{{ ev.event_id }}"><button type="submit" name="action" value="reject">Dismiss</button></form>
+  </div>
+  {% else %}
+  <div class="actions">
+    <form method="post" action="/review/events"><input type="hidden" name="event_id" value="{{ ev.event_id }}"><button class="primary" type="submit" name="action" value="accept">Accept</button></form>
+    <form method="post" action="/review/events"><input type="hidden" name="event_id" value="{{ ev.event_id }}"><button class="danger" type="submit" name="action" value="reject">Reject</button></form>
+    {% if ev.carry_to %}<form method="post" action="/review/events"><input type="hidden" name="event_id" value="{{ ev.event_id }}"><input type="hidden" name="carry_to" value="{{ ev.carry_to }}"><button type="submit" name="action" value="carry">Carry my earlier review over</button></form>{% endif %}
+  </div>
+
+  <details>
+    <summary>Edit before accepting</summary>
+    <form method="post" action="/review/events">
+      <input type="hidden" name="event_id" value="{{ ev.event_id }}">
+      <div class="row">
+        <div><label>Date</label><input type="date" name="date" value="{{ ev.date or '' }}"></div>
+        <div><label>Type</label><select name="event_type">{% for t in event_types %}<option value="{{ t }}"{% if t == ev.event_type %} selected{% endif %}>{{ t.replace("_", " ") }}</option>{% endfor %}</select></div>
+        <div><label>Coach</label><input type="text" name="coach" value="{{ ev.coach or '' }}"></div>
+        <div><label>Focus (comma list)</label><input type="text" name="focus" value="{{ ev.focus_text }}" placeholder="putting, short_game"></div>
+      </div>
+      <label>Summary</label><input type="text" name="summary" value="{{ ev.summary or '' }}" style="width:100%">
+      <div class="actions"><button class="primary" type="submit" name="action" value="edit">Save edits and accept</button></div>
+      <p class="small muted">Focus areas: full_swing, driving, approach, short_game, bunker, putting, course_management, mental, physical, equipment.</p>
+    </form>
+  </details>
+  {% endif %}
+
+  <details{% if ev.dup_of %} open{% endif %}>
+    <summary>Merge into another event{% if ev.dup_of %} (looks like a duplicate){% endif %}</summary>
+    <form method="post" action="/review/events">
+      <input type="hidden" name="event_id" value="{{ ev.event_id }}">
+      <select name="merged_into" aria-label="Merge into">
+        {% for c in candidates if c.event_id != ev.event_id %}<option value="{{ c.event_id }}"{% if c.event_id == ev.dup_of %} selected{% endif %}>{{ c.label }}</option>{% endfor %}
+      </select>
+      <button type="submit" name="action" value="merge">Merge</button>
+    </form>
+  </details>
+</section>
+{% endfor %}
+{% endblock %}

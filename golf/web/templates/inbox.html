@@ -1,0 +1,116 @@
+{% extends "base.html" %}
+{% block title %}Inbox{% endblock %}
+{% block content %}
+<h1>Inbox</h1>
+<p class="sub">Bring data in. Everything is saved under <code>data/</code> on this Mac (never committed); only extraction calls leave the machine, to the Claude API.</p>
+
+{% include "_jobs.html" %}
+
+<div class="grid2">
+  <section class="card">
+    <h2>Round screenshots (one round per upload)</h2>
+    <form method="post" action="/inbox" enctype="multipart/form-data" data-busy-text="Uploading&hellip;">
+      <input type="hidden" name="action" value="upload">
+      <label for="shots">Screenshots of ONE round (PNG, JPEG or HEIC; several at once)</label>
+      <input id="shots" type="file" name="screenshots" multiple accept="image/*,.heic,.heif" data-count="shots-count">
+      <span id="shots-count" class="small muted"></span>
+      <div class="row">
+        <div>
+          <label for="played_on">Date played (optional, beats the date on screen)</label>
+          <input id="played_on" type="date" name="played_on">
+        </div>
+        <div>
+          <label for="club_id">Course (optional hint)</label>
+          <select id="club_id" name="club_id">
+            <option value="">(read it from the screens)</option>
+            {% for c in clubs %}<option value="{{ c.club_id }}">{{ c.name or c.club_id }}{% if c.n %} ({{ c.n|plural("round") }}){% endif %}</option>{% endfor %}
+          </select>
+        </div>
+        <div>
+          <label for="holes">Holes</label>
+          <select id="holes" name="holes"><option value="">auto</option><option value="18">18</option><option value="9">9</option></select>
+        </div>
+      </div>
+      <div class="actions"><button class="primary" type="submit">Upload and extract</button></div>
+    </form>
+    <h3>What to capture in 18Birdies</h3>
+    <ol class="check">
+      {% for title, text in checklist %}<li><strong>{{ title }}.</strong> {{ text }}</li>{% endfor %}
+    </ol>
+    <p class="small muted">{{ tips }}</p>
+  </section>
+
+  <section class="card">
+    <h2>Notebook page photos</h2>
+    <form method="post" action="/inbox" enctype="multipart/form-data" data-busy-text="Uploading&hellip;">
+      <input type="hidden" name="action" value="upload">
+      <label for="pages">Photos of paper-notebook pages (any number)</label>
+      <input id="pages" type="file" name="notebook" multiple accept="image/*,.heic,.heif" data-count="pages-count">
+      <span id="pages-count" class="small muted"></span>
+      <div class="actions"><button class="primary" type="submit">Upload and transcribe</button></div>
+    </form>
+    <p class="small muted">Each page is transcribed, then lessons, practice and equipment changes are pulled out. Every notebook event waits for your review. Shoot the page flat and in good light; a date written at the top of the page makes the events datable.</p>
+
+    <h2 style="margin-top:20px">Inbox folders</h2>
+    <p>Waiting in <code>data/inbox/screenshots</code>: <strong>{{ waiting.screenshots|plural("image") }}</strong>;
+       in <code>data/inbox/notebook</code>: <strong>{{ waiting.notebook|plural("photo") }}</strong>.</p>
+    <p class="small muted">Drop files there (AirDrop, Finder) instead of uploading: one subfolder per round, named like <code>2026-09-20 Stow</code> to give the date. Loose files are grouped by capture time.</p>
+    <form method="post" action="/inbox" data-busy-text="Starting&hellip;">
+      <input type="hidden" name="action" value="process">
+      <button type="submit">Process inbox folders</button>
+    </form>
+  </section>
+</div>
+
+<div class="grid2">
+  <section class="card">
+    <h2>18Birdies export</h2>
+    <form method="post" action="/import" enctype="multipart/form-data" data-busy-text="Importing&hellip;">
+      <label for="archive">18Birdies_archive.json</label>
+      <input id="archive" type="file" name="archive" accept=".json,application/json">
+      <div class="actions"><button class="primary" type="submit">Import</button></div>
+    </form>
+    <ol class="check small">
+      <li>Sign in at <a href="https://18birdies.com/download-account-data/" target="_blank" rel="noopener noreferrer">18birdies.com/download-account-data</a> (email + password, or phone + SMS code).</li>
+      <li>Click <em>Request My Data</em>; the browser saves <code>18Birdies_archive.json</code> into Downloads.</li>
+      <li>Nothing else: it is picked up from Downloads automatically (<a href="/status#birdies">18Birdies</a>). Uploading it here works too.</li>
+    </ol>
+    <p class="small muted">It is the source of truth for strokes. A dated copy is kept as <code>{{ export_dir }}/18Birdies_archive_YYYYMMDD.json</code>; the same file twice changes nothing. The file holds your email, phone and friends list: only the rounds are read.</p>
+  </section>
+
+  <section class="card">
+    <h2>Apple Notes</h2>
+    <form method="post" action="/notes/sync" data-busy-text="Syncing&hellip;">
+      <div class="row">
+        <button class="primary{% if not key_set %} needs-key{% endif %}" type="submit"{% if not key_set %} disabled title="Needs ANTHROPIC_API_KEY in .env"{% endif %}>Sync the Golf folder</button>
+        <button type="submit" name="dry_run" value="1">Dry run (read only, no API calls)</button>
+      </div>
+    </form>
+    {% if not key_set %}<p class="small status-error">Syncing needs a Claude API key (<code>ANTHROPIC_API_KEY</code> in <code>.env</code>): each note is read by Claude. Until then, log lessons with Quick entry below.</p>{% endif %}
+    <p class="small muted">Reads the iCloud Notes folder <strong>Golf</strong>. The first sync makes macOS ask whether this app may control Notes: allow it (System Settings &gt; Privacy &amp; Security &gt; Automation). Only new or edited notes are sent for extraction.</p>
+    <details>
+      <summary>How to write notes the timeline can date exactly</summary>
+      <pre>{{ note_help }}</pre>
+    </details>
+  </section>
+</div>
+
+<section class="card" id="quick">
+  <h2>Quick entry: a lesson, practice session or gear change</h2>
+  <p class="small muted">Works now, with no API key: it goes straight onto the timeline and the dashboard's lesson comparison (the same as <code>golf add "..." --type lesson</code>).</p>
+  <form method="post" action="/add" data-busy-text="Adding&hellip;">
+    <div class="row">
+      <div><label for="q-date">Date</label><input id="q-date" type="date" name="date" value="{{ today }}" required></div>
+      <div><label for="q-type">Type</label>
+        <select id="q-type" name="event_type" required>
+          {% for t in event_types %}<option value="{{ t }}"{% if t == "lesson" %} selected{% endif %}>{{ t.replace("_", " ") }}</option>{% endfor %}
+        </select></div>
+      <div><label for="q-coach">Coach (optional)</label><input id="q-coach" type="text" name="coach" size="14"></div>
+      <div><label for="q-focus">Focus (optional)</label><input id="q-focus" type="text" name="focus" size="18" placeholder="putting, full_swing"></div>
+    </div>
+    <label for="q-text">What happened</label>
+    <textarea id="q-text" name="text" required placeholder="Lesson with Mike: grip and 7-iron ball position"></textarea>
+    <div class="actions"><button class="primary" type="submit">Add to the timeline</button></div>
+  </form>
+</section>
+{% endblock %}

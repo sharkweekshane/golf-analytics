@@ -1,0 +1,97 @@
+{% extends "base.html" %}
+{% block title %}Status{% endblock %}
+{% block content %}
+<h1>Status</h1>
+{% include "_jobs.html" %}
+
+<section class="card" id="birdies">
+  <div class="row" style="justify-content: space-between; align-items: baseline;">
+    <h2 style="margin:0">18Birdies</h2>
+    {% if info.last_export %}
+    <span class="badge {{ 'W' if info.last_export.age_days > stale_days else 'ok' }}">export {{ info.last_export.age_days|plural("day") }} old</span>
+    {% else %}<span class="badge W">no export yet</span>{% endif %}
+  </div>
+  <div class="grid2" style="margin-top:8px">
+    <div>
+      <p>{% if info.last_export %}Last snapshot <strong>{{ info.last_export.snapshot_date }}</strong>{% if info.last_export.age_days > stale_days %}: time for a fresh one{% endif %}.{% else %}No export imported yet.{% endif %}
+        New rounds reach this app only through a fresh export.</p>
+      <p><a class="btn primary" href="{{ export_url }}" target="_blank" rel="noopener noreferrer">Open 18birdies.com/download-account-data</a>
+        <span class="small muted">(bookmark it)</span></p>
+      <ol class="check small">{% for step in export_steps %}<li>{{ step }}</li>{% endfor %}</ol>
+    </div>
+    <div>
+      <dl class="kv">
+        <dt>Auto-import</dt>
+        <dd>{% if birdies.agent.installed %}<span class="badge ok">LaunchAgent installed</span> <span class="small muted">runs even when this app is closed</span>{% else %}<span class="badge W">LaunchAgent not installed</span> <span class="small">run <code>golf watch install</code></span>{% endif %}
+          <div class="small muted">While this app runs it also looks every minute.</div></dd>
+        <dt>Watching</dt>
+        <dd>{% for d in birdies.dirs %}<div class="small"><code>{{ d.path }}</code>{% if not d.exists %} <span class="muted">(not there)</span>{% endif %}</div>{% endfor %}</dd>
+        <dt>Last scan</dt>
+        <dd>{% set scan = birdies.last_scan %}{% if scan %}{{ scan.at|localtime }} <span class="small muted">(by {{ scan.source|source_label }})</span>
+          {% if scan.imported %}<div class="small">imported {{ scan.imported|join(", ") }}</div>{% endif %}
+          {% for x in scan.pending %}<div class="small muted">waiting: {{ x.file }} ({{ x.reason }})</div>{% endfor %}
+          {% for x in scan.errors %}<div class="small status-error">{{ x.file }}: {{ x.error }}</div>{% endfor %}
+          {% for x in scan.held or [] %}<div class="small status-error">Not imported automatically: {{ x.file }}: {{ x.reason }}</div>{% endfor %}
+          {% for d in scan.denied_dirs or [] %}<div class="small status-error">No permission to read {{ d }}: allow <code>{{ birdies.python_for_permissions }}</code> when macOS asks, or in System Settings &gt; Privacy &amp; Security &gt; Files and Folders (<code>golf watch status</code> explains, including when Full Disk Access is the only way).</div>{% endfor %}
+          {% else %}never{% endif %}</dd>
+        {% if birdies.last_import %}<dt>Last auto-import</dt><dd>{{ birdies.last_import.file }} <span class="small muted">({{ birdies.last_import.at|localtime }})</span></dd>{% endif %}
+        <dt>Public site</dt>
+        <dd>{% if info.publish.enabled %}<a href="{{ info.publish.site_url }}" target="_blank" rel="noopener noreferrer">{{ info.publish.site_url }}</a>
+          <div class="small muted">{% if info.publish.last %}last published {{ info.publish.last.at|localtime }}{% else %}not published yet{% endif %}{% if info.publish.auto %}; republished after each new export{% endif %}</div>
+          {% else %}<span class="muted">off</span> <span class="small">(set <code>enabled = true</code> under <code>[publish]</code> in config.toml)</span>{% endif %}</dd>
+      </dl>
+      <div class="actions">
+        <form method="post" action="/watch/scan" data-busy-text="Looking&hellip;"><button type="submit">Look in Downloads now</button></form>
+        {% if info.publish.enabled %}<form method="post" action="/publish" data-busy-text="Publishing&hellip;"><button class="primary" type="submit">Publish now</button></form>{% endif %}
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="grid2">
+  <section class="card">
+    <h2>Data</h2>
+    <dl class="kv">
+      <dt>Rounds counted</dt><dd>{{ info.rounds.counted }}{% for k, v in info.rounds.by_source.items() %} <span class="badge">{{ k|source_label }}: {{ v }}</span>{% endfor %}</dd>
+      <dt>Excluded / deleted / abandoned</dt><dd>{{ info.rounds.excluded }} / {{ info.rounds.deleted_in_source }} / {{ info.rounds.abandoned }}</dd>
+      <dt>Handicap index</dt><dd>{% if info.handicap %}{{ "%.1f"|format(info.handicap.index) }} <span class="small muted">unofficial, as of {{ info.handicap.as_of[:10] }}{% if info.handicap.low is not none %}; low {{ "%.1f"|format(info.handicap.low) }}{% endif %}</span>{% else %}none yet{% endif %}
+        <div class="small muted">9-hole rounds {{ "included" if info.include_nine else "left out" }} (<code>golf recompute --{{ "no-" if info.include_nine }}include-nine</code> changes it)</div></dd>
+      <dt>Last 18Birdies export</dt><dd>{% if info.last_export %}snapshot {{ info.last_export.snapshot_date }}, {% if info.last_export.age_days == 0 %}today{% else %}{{ info.last_export.age_days|plural("day") }} ago{% endif %}{% if info.last_export.age_days > stale_days %} <span class="badge W">download a fresh one</span>{% endif %}{% else %}never imported{% endif %}</dd>
+      <dt>Timeline events</dt><dd>{{ info.events.timeline }} counted</dd>
+      <dt>Waiting for review</dt><dd><a href="/review">{{ info.reviews.rounds|plural("round") }}, {{ info.reviews.events|plural("event") }}</a></dd>
+      <dt>Inbox</dt><dd>{{ info.inbox.screenshots|plural("screenshot") }}, {{ info.inbox.notebook|plural("notebook photo") }}</dd>
+      <dt>Database</dt><dd><code>{{ info.db_path }}</code>{% if info.demo %} <span class="badge W">demo data</span>{% endif %}</dd>
+    </dl>
+  </section>
+  <section class="card">
+    <h2>Claude API</h2>
+    <dl class="kv">
+      <dt>API key</dt><dd>{% if info.api.key_set %}<span class="badge ok">set</span>{% else %}<span class="badge E">not set</span> <span class="small">put ANTHROPIC_API_KEY in .env</span>{% endif %}</dd>
+      <dt>Model</dt><dd><code>{{ info.api.model }}</code></dd>
+      <dt>Calls billed</dt><dd>{{ info.api.calls }}{% if info.api.unpriced %} <span class="small muted">({{ info.api.unpriced }} on a model with no known price, not in the total below)</span>{% endif %}</dd>
+      <dt>Spent so far</dt><dd>${{ "%.2f"|format(info.api.spend_usd) }} <span class="small muted">(every call's cost is logged; re-runs are served from the cache for free)</span></dd>
+    </dl>
+    <h3>Setup files</h3>
+    <ul class="small">
+      <li>courses.yaml: {{ "present" if info.files.courses_yaml else "missing (no course ratings, so no differentials)" }}</li>
+      <li>entities.yaml: {% if not info.files.entities_yaml %}missing{% elif info.files.entities_is_example %}still the example's placeholder names: replace them{% else %}present{% endif %}</li>
+      <li>.env: {{ "present" if info.files.env else "missing" }}</li>
+    </ul>
+  </section>
+</div>
+
+<section class="card">
+  <h2>Course data check</h2>
+  {% if issues %}
+  <div class="table-wrap"><table>
+    <thead><tr><th>Severity</th><th>Code</th><th>Message</th></tr></thead>
+    <tbody>{% for i in issues %}<tr><td><span class="badge {{ 'E' if i.severity == 'error' else 'W' if i.severity == 'warn' else '' }}">{{ i.severity }}</span></td><td><code>{{ i.code }}</code></td><td>{{ i.message }}</td></tr>{% endfor %}</tbody>
+  </table></div>
+  <p class="small muted">Fix these in <code>courses.yaml</code> (<code>golf courses autofill &lt;club_id&gt;</code> proposes an entry), then run <code>golf courses sync</code>.</p>
+  {% else %}
+  <p class="muted">No course problems found.</p>
+  {% endif %}
+</section>
+
+<details class="card"><summary>Same as <code>golf status</code></summary><pre>{{ text }}</pre></details>
+{% endblock %}

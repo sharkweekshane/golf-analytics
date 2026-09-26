@@ -1,0 +1,80 @@
+# courses.yaml: course reference data, hand-verified. THIS FILE IS A SYNTHETIC EXAMPLE.
+#
+# Copy it to courses.yaml (same folder) and replace the example with your clubs.
+#   golf courses sync       load courses.yaml into golf.db, map rounds, fill per-hole par/SI
+#   golf courses check      list unmapped clubs, unrated or unchecked tees, par checksum failures
+#   golf courses autofill   propose an entry from OpenGolfAPI (ODbL); check it before trusting it
+#
+# Layout
+#   clubs:
+#     <club id>:                  18Birdies facility id (rounds[].clubId.id); a facility, not a course
+#       name:                     informational
+#       default_course:           multi-course clubs only: where rounds not listed under `rounds` go
+#       courses:
+#         <course_key>:           slug, unique across the file
+#           name, holes (9|18), source, source_ref
+#           tees: name, gender (M|F), par, cr18/slope18, cr_f9/slope_f9, cr_b9/slope_b9,
+#                 rating_source, checked_on (YYYY-MM-DD once confirmed against the scorecard/USGA),
+#                 is_default (the tee you usually play), holes: [{hole, par, si, yards}]
+#       rounds:                   optional per-round mapping: {course, tee, nine: front|back}
+#
+# Checksum: for every complete round, the sum of par here over the holes played must equal the
+# export's strokes - score. `golf courses check` reports any round where it doesn't (wrong mapping).
+clubs:
+  00000000-0000-4000-8000-00000000a001:
+    name: Synthetic Pines Golf Club
+    courses:
+      synthetic-pines:
+        name: Synthetic Pines
+        holes: 18
+        tees:
+        - name: White
+          gender: M
+          cr18: 71.4
+          slope18: 128
+          cr_f9: 35.6
+          slope_f9: 126
+          cr_b9: 35.8
+          slope_b9: 130
+          rating_source: example (synthetic)
+          checked_on: '2026-09-01'
+          is_default: true
+          holes:
+          - {hole: 1, par: 4, si: 7, yards: 385}
+          - {hole: 2, par: 4, si: 3, yards: 402}
+          - {hole: 3, par: 3, si: 17, yards: 158}
+          - {hole: 4, par: 5, si: 1, yards: 512}
+          - {hole: 5, par: 4, si: 11, yards: 371}
+          - {hole: 6, par: 4, si: 5, yards: 395}
+          - {hole: 7, par: 3, si: 15, yards: 171}
+          - {hole: 8, par: 4, si: 13, yards: 360}
+          - {hole: 9, par: 5, si: 9, yards: 530}
+          - {hole: 10, par: 4, si: 8, yards: 410}
+          - {hole: 11, par: 3, si: 16, yards: 145}
+          - {hole: 12, par: 5, si: 2, yards: 505}
+          - {hole: 13, par: 4, si: 12, yards: 388}
+          - {hole: 14, par: 4, si: 4, yards: 365}
+          - {hole: 15, par: 4, si: 10, yards: 420}
+          - {hole: 16, par: 3, si: 18, yards: 180}
+          - {hole: 17, par: 5, si: 6, yards: 540}
+          - {hole: 18, par: 4, si: 14, yards: 375}
+        - name: Red
+          gender: F
+          par: 72
+          cr18: 73.9
+          slope18: 131
+          rating_source: example (synthetic)
+          checked_on: ''
+    rounds:
+      # A 9-hole round saved as a 9-long holeStrokes array can't say which nine it was:
+      syn-nine-array: {nine: back}
+
+  # A two-course facility needs an explicit choice: default_course, or per-round entries.
+  # 00000000-0000-4000-8000-00000000b002:
+  #   name: Synthetic Dunes Golf Resort
+  #   default_course: dunes-links
+  #   courses:
+  #     dunes-links: {name: Dunes Links, tees: [...]}
+  #     dunes-meadow: {name: Dunes Meadow, tees: [...]}
+  #   rounds:
+  #     syn-dunes: {course: dunes-meadow, tee: Blue}

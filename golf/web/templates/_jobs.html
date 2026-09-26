@@ -1,0 +1,20 @@
+{% if jobs %}
+<section class="card" id="jobs">
+  <h2>Recent jobs</h2>
+  <ul class="jobs">
+    {% for j in jobs %}
+    <li data-job-id="{{ j.id }}" data-status="{{ j.status }}">
+      <div class="row" style="justify-content: space-between;">
+        <strong>{{ j.label }}</strong>
+        <span class="small status-{{ j.status }}">{{ j.status }}{% if j.status in ('running', 'queued') %}&hellip;{% endif %}
+          <span class="muted">&middot; {{ j.started_at }}{% if j.finished_at %}&ndash;{{ j.finished_at }}{% endif %}</span></span>
+      </div>
+      {% if j.text %}<pre>{{ j.text }}</pre>{% endif %}
+      {% if j.error %}<p class="status-error">{{ j.error }}</p>{% endif %}
+      {% if j.help %}<pre>{{ j.help }}</pre>{% endif %}
+      {% if j.links %}<div class="row small">{% for text, href in j.links %}<a href="{{ href }}">{{ text }}</a>{% endfor %}</div>{% endif %}
+    </li>
+    {% endfor %}
+  </ul>
+</section>
+{% endif %}

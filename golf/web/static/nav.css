@@ -1,0 +1,17 @@
+/* Top bar shared by the app pages and the live dashboard (which brings its own colour tokens). */
+.gnav { position: sticky; top: 0; z-index: 30; background: var(--surface); border-bottom: 1px solid var(--border); }
+.gnav-in { max-width: 1400px; margin: 0 auto; padding: 0 16px; display: flex; flex-wrap: wrap; align-items: center; gap: 2px 4px; min-height: 48px; }
+.gnav a { color: var(--ink-2); text-decoration: none; font: 600 14px/1 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; padding: 9px 10px; border-radius: 8px; white-space: nowrap; }
+.gnav a:hover { background: var(--wash); color: var(--ink); }
+.gnav a.on { color: var(--ink); background: var(--wash); }
+.gnav a.brand { color: var(--ink); font-weight: 700; margin-right: 8px; }
+.gnav .pill { display: inline-block; min-width: 18px; padding: 0 6px; border-radius: 999px; background: var(--st-critical, #d03b3b); color: #fff; font-size: 11px; line-height: 18px; text-align: center; margin-left: 2px; }
+.gnav .pill.fresh { background: var(--wash); color: var(--ink-2); border: 1px solid var(--border); }
+.gnav-note { margin-left: auto; color: var(--muted); font: 12px system-ui, -apple-system, sans-serif; }
+/* Phones: one row that scrolls sideways, not two sticky rows eating ~100px of the screen. */
+@media (max-width: 560px) {
+  .gnav-note { display: none; }
+  .gnav { position: static; }
+  .gnav-in { flex-wrap: nowrap; overflow-x: auto; -webkit-overflow-scrolling: touch; padding: 0 8px; }
+  .gnav a { padding: 9px 8px; }
+}

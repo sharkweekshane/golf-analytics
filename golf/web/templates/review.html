@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% block title %}Review{% endblock %}
+{% block content %}
+<h1>Review</h1>
+<p class="sub">Machine readings wait here until you check them. Every correction you make is kept: it becomes the test set that measures extraction accuracy.</p>
+
+<section class="card">
+  <h2>Screenshot rounds <span class="badge">{{ rounds|length }} waiting</span></h2>
+  {% if rounds %}
+  <div class="table-wrap"><table>
+    <thead><tr><th>#</th><th>Played</th><th>Course (as read)</th><th>Matched round</th><th class="num">Images</th><th>Flags</th><th></th></tr></thead>
+    <tbody>
+    {% for r in rounds %}
+      <tr>
+        <td>{{ r.extraction_id }}</td>
+        <td>{{ r.played_on or "no date" }}</td>
+        <td>{{ r.course_text or "?" }}</td>
+        <td>{{ r.round_id or "none yet" }}{% if r.round_source %} <span class="badge">{{ r.round_source }}</span>{% endif %}</td>
+        <td class="num">{{ r.n_images }}</td>
+        <td>{% if r.n_errors %}<span class="badge E">{{ r.n_errors }} error{{ "s" if r.n_errors != 1 }}</span>{% endif %}
+            {% if r.n_warnings %}<span class="badge W">{{ r.n_warnings }} warning{{ "s" if r.n_warnings != 1 }}</span>{% endif %}</td>
+        <td><a href="/review/round/{{ r.extraction_id }}">Review</a></td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table></div>
+  {% else %}
+  <p class="muted">Nothing waiting. Upload screenshots on the <a href="/inbox">Inbox</a> page.</p>
+  {% endif %}
+</section>
+
+<section class="card">
+  <h2>Timeline events <span class="badge">{{ events|length }} waiting</span></h2>
+  {% if events %}
+  <div class="table-wrap"><table>
+    <thead><tr><th>Date</th><th>Type</th><th>Summary</th><th>Source</th><th>Flags</th></tr></thead>
+    <tbody>
+    {% for e in events[:15] %}
+      <tr>
+        <td>{{ e.date or "?" }}</td><td>{{ e.event_type }}</td><td>{{ e.summary or "" }}</td>
+        <td class="small">{{ e.doc_title or e.doc_id }} <span class="badge">{{ e.doc_source }}</span></td>
+        <td>{% for f in e.flags %}<span class="badge W">{{ f.code }}</span> {% endfor %}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table></div>
+  <div class="actions"><a class="btn" href="/review/events">Review events</a></div>
+  {% else %}
+  <p class="muted">Nothing waiting. Sync notes or upload notebook pages on the <a href="/inbox">Inbox</a> page.</p>
+  {% endif %}
+</section>
+
+{% if recent %}
+<section class="card">
+  <h2>Recently decided rounds</h2>
+  <div class="table-wrap"><table>
+    <thead><tr><th>#</th><th>Status</th><th>Round</th><th>When</th></tr></thead>
+    <tbody>{% for r in recent %}<tr><td><a href="/review/round/{{ r.extraction_id }}">{{ r.extraction_id }}</a></td><td>{{ r.status }}</td><td>{{ r.round_id or "" }}</td><td class="small muted">{{ (r.reviewed_at or r.created_at or "")[:16] }}</td></tr>{% endfor %}</tbody>
+  </table></div>
+</section>
+{% endif %}
+{% endblock %}

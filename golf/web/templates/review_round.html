@@ -1,0 +1,127 @@
+{% extends "base.html" %}
+{% block title %}Review round {{ rv.extraction_id }}{% endblock %}
+{% block wrapclass %} wide{% endblock %}
+{% block content %}
+<h1>Round extraction {{ rv.extraction_id }} <span class="badge {{ 'ok' if rv.status in ('accepted', 'auto_accepted') else ('E' if n_errors else 'W') }}">{{ rv.status }}</span></h1>
+<p class="sub">
+  Played {{ rv.played_on or "(no date yet)" }} &middot;
+  {% if rv.round_id %}round <code>{{ rv.round_id }}</code> ({{ rv.round_source }}){% else %}not matched to a round yet{% endif %}
+  {% if rv.reference %}&middot; the 18Birdies export is the checksum: its strokes are never overwritten{% endif %}
+</p>
+
+<div class="review-layout">
+  <section class="shots" aria-label="Screenshots">
+    {% for im in images %}
+    <figure class="shot">
+      {% if im.url %}<a href="{{ im.url }}" target="_blank" rel="noopener"><img src="{{ im.url }}" alt="Screenshot {{ im.index }}" loading="lazy"></a>
+      {% else %}<div class="missing">Image {{ im.index }} ({{ im.name }}) is not available under data/.</div>{% endif %}
+      <figcaption>Image {{ im.index }}{% if im.info %} &middot; {{ im.info.screen_type }} &middot; {{ im.info.orientation }}{% if im.info.first_hole and im.info.first_hole > 0 %} &middot; holes {{ im.info.first_hole }}&ndash;{{ im.info.last_hole }}{% endif %}{% if im.info.problems %} &middot; <span class="status-error">{{ im.info.problems }}</span>{% endif %}{% endif %}</figcaption>
+    </figure>
+    {% endfor %}
+  </section>
+
+  <section>
+    <form method="post" class="review-form" action="/review/round/{{ rv.extraction_id }}" data-busy-text="Saving&hellip;">
+      <div class="card">
+        <h2>Flags</h2>
+        <div class="legend-cells">
+          <span><span class="swatch cell-E"></span>error: contradicts the export or is impossible</span>
+          <span><span class="swatch cell-W"></span>warning: doubtful reading</span>
+          <span><span class="swatch" style="background: var(--changed)"></span>edited by you</span>
+        </div>
+        {% if rv.flags or rv.cleared_flags %}
+        <ul class="flags">
+          {% for f in rv.flags %}
+          <li><span class="badge {{ f.severity }}">{{ f.severity }} {{ f.code }}</span>
+              <span>{% if f.message.startswith("Hole") %}{% elif f.hole %}Hole {{ f.hole }}{% if f.field %} {{ f.field.replace("_", " ") }}{% endif %}: {% elif f.field %}{{ f.field.replace("_", " ") }}: {% endif %}{{ f.message }}
+              {% if f.reread %}<span class="small muted">(second reading: {{ f.reread.value if f.reread.value != "" else "unreadable" }}{% if f.reread.agrees %}, agrees{% else %}, disagrees{% endif %})</span>{% endif %}</span></li>
+          {% endfor %}
+          {% for f in rv.cleared_flags %}
+          <li class="cleared"><span class="badge">{{ f.code }}</span><span>{% if f.hole and not f.message.startswith("Hole") %}Hole {{ f.hole }} {{ (f.field or "").replace("_", " ") }}: {% endif %}{{ f.message }} <span class="small">(cleared: a second reading agreed)</span></span></li>
+          {% endfor %}
+        </ul>
+        {% else %}
+        <p class="muted">No flags.</p>
+        {% endif %}
+      </div>
+
+      <div class="card">
+        <h2>Round</h2>
+        <div class="row">
+          {% for c in round_cells %}
+          <div class="{{ c.cls }}" title="{{ c.title }}">
+            <label for="r-{{ c.field }}">{{ {"date_iso": "Date played (YYYY-MM-DD)", "course_text": "Course", "tee_text": "Tee", "course_par": "Course par"}[c.field] }}</label>
+            <input id="r-{{ c.field }}" type="text" name="r-{{ c.field }}" value="{{ c.value }}" data-orig="{{ c.value }}"
+                   {% if c.field == "course_par" %}inputmode="numeric" size="4"{% elif c.field == "date_iso" %}size="11"{% endif %}>
+          </div>
+          {% endfor %}
+        </div>
+        <p class="small muted" style="margin-top:8px">Screens say: {{ rv.header.date_text or "no date" }} &middot; {{ rv.header.player_name or "player not shown" }} &middot; model confidence {{ rv.header.overall_confidence }}{% if rv.header.issues %} &middot; issues: {{ rv.header.issues|join("; ") }}{% endif %}</p>
+      </div>
+
+      <div class="card">
+        <h2>Holes</h2>
+        <p class="small muted">Blank = not visible / not recorded. Dashed cells are ones the model said it was unsure of. Hover a coloured cell for its flag.</p>
+        <div class="table-wrap">
+          <table class="grid">
+            <thead><tr><th>Hole</th>{% for f in rv.fields %}<th>{{ f.replace("_", " ") }}</th>{% endfor %}<th title="Strokes in the 18Birdies export">export</th></tr></thead>
+            <tbody>
+            {% for row in rows %}
+              <tr class="{{ 'missing-hole' if row.missing }}">
+                <td class="hole {{ row.hole_class }}" title="{{ row.hole_title }}{% if row.missing %} Not read: fill any cell to add this hole.{% endif %}">{{ row.hole }}</td>
+                {% for c in row.cells %}
+                <td class="{{ c.cls }}{% if c.uncertain %} uncertain{% endif %}" title="{{ c.title }}">
+                  {% if c.field in choices %}
+                  <select name="c-{{ row.hole }}-{{ c.field }}" data-orig="{{ c.value }}" aria-label="Hole {{ row.hole }} {{ c.field }}">
+                    {% if row.missing or c.value == "" %}<option value=""{% if c.value == "" %} selected{% endif %}></option>{% endif %}
+                    {% for opt in choices[c.field] %}<option value="{{ opt }}"{% if opt == c.value %} selected{% endif %}>{{ opt.replace("_", " ") }}</option>{% endfor %}
+                  </select>
+                  {% else %}
+                  <input type="text" inputmode="numeric" name="c-{{ row.hole }}-{{ c.field }}" value="{{ c.value }}" data-orig="{{ c.value }}" aria-label="Hole {{ row.hole }} {{ c.field }}">
+                  {% endif %}
+                </td>
+                {% endfor %}
+                {% set strokes = row.cells | selectattr("field", "equalto", "strokes") | first %}
+                <td class="{{ 'ref-diff' if row.reference is not none and strokes and strokes.value != row.reference|string }}">{{ row.reference if row.reference is not none else "" }}</td>
+              </tr>
+            {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Totals</h2>
+        <div class="table-wrap"><table>
+          <thead><tr><th></th><th class="num">Printed on the screens</th>{% if rv.reference %}<th class="num">18Birdies export</th>{% endif %}</tr></thead>
+          <tbody>
+            {% set d = rv.displayed %}{% set ref = rv.reference or {} %}
+            <tr><td>Gross</td><td class="num">{{ d.gross if d.gross != -1 else "" }}</td>{% if rv.reference %}<td class="num">{{ ref.gross if ref.gross is not none else "" }}</td>{% endif %}</tr>
+            <tr><td>Front / back</td><td class="num">{{ d.front if d.front != -1 else "" }} / {{ d.back if d.back != -1 else "" }}</td>{% if rv.reference %}<td></td>{% endif %}</tr>
+            <tr><td>To par</td><td class="num">{{ d.to_par_text }}</td>{% if rv.reference %}<td class="num">{{ ref.to_par if ref.to_par is not none else "" }}</td>{% endif %}</tr>
+            <tr><td>Putts</td><td class="num">{{ d.total_putts if d.total_putts != -1 else "" }}</td>{% if rv.reference %}<td class="num">{{ ref.putts if ref.putts is not none else "" }}</td>{% endif %}</tr>
+            <tr><td>Fairways hit</td><td class="num">{{ d.fairways_hit if d.fairways_hit != -1 else "" }}</td>{% if rv.reference %}<td class="num">{{ ref.fw_hit if ref.fw_hit is not none else "" }}</td>{% endif %}</tr>
+            <tr><td>Greens in regulation</td><td class="num">{{ d.gir if d.gir != -1 else "" }}</td>{% if rv.reference %}<td class="num">{{ ref.gir if ref.gir is not none else "" }}</td>{% endif %}</tr>
+            <tr><td>Penalties</td><td class="num">{{ d.penalties if d.penalties != -1 else "" }}</td>{% if rv.reference %}<td></td>{% endif %}</tr>
+          </tbody>
+        </table></div>
+      </div>
+
+      <div class="actions">
+        <button class="primary" type="submit" name="action" value="save">Save corrections</button>
+        <button type="submit" name="action" value="accept">Accept</button>
+        {% if n_errors %}<button type="submit" name="action" value="accept_force" data-confirm="Accept with {{ n_errors }} error flag(s) still open? Use this only when the flag is wrong (e.g. a genuinely different round on the same day).">Accept anyway</button>{% endif %}
+        <button class="danger" type="submit" name="action" value="reject" data-confirm="Reject this extraction? Anything it wrote to the round is taken back out.">Reject</button>
+      </div>
+      <p class="small muted">Save records each edited cell and re-checks the round; it is accepted automatically once no errors and at most one warning remain. Accept keeps warnings.</p>
+    </form>
+
+    {% if rv.corrections %}
+    <details class="card"><summary>Your corrections ({{ rv.corrections|length }})</summary>
+      <div class="table-wrap"><table><thead><tr><th>Cell</th><th>Model</th><th>You</th><th>When</th></tr></thead>
+      <tbody>{% for c in rv.corrections %}<tr><td>{{ c.entity_id.split(":")[-1] if c.entity == "round_hole" else "round" }} {{ c.field }}</td><td>{{ c.model_value }}</td><td>{{ c.corrected_value }}</td><td class="small muted">{{ c.corrected_at[:16] }}</td></tr>{% endfor %}</tbody></table></div>
+    </details>
+    {% endif %}
+  </section>
+</div>
+{% endblock %}

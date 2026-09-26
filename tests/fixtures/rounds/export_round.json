@@ -1,0 +1,52 @@
+{
+ "club": {
+  "club_id": "club-maple",
+  "name": "Maple Ridge Golf Club"
+ },
+ "round": {
+  "round_id": "r-1001",
+  "source": "18b_export",
+  "played_at_utc": "2026-09-20T13:05:00+00:00",
+  "played_on_local": "2026-09-20",
+  "club_id": "club-maple",
+  "entry_mode": "hole_by_hole",
+  "holes_played": 18,
+  "gross": 83,
+  "to_par": 11,
+  "par_played": 72,
+  "fw_hit": 9,
+  "fw_left": 3,
+  "fw_right": 2,
+  "fw_short": 0,
+  "fw_long": 0,
+  "fw_chances": 14,
+  "gir": 7,
+  "gir_left": 2,
+  "gir_right": 3,
+  "gir_short": 4,
+  "gir_long": 1,
+  "gir_chances": 18,
+  "putts": 36,
+  "putts_tracked": 1
+ },
+ "hole_strokes": [
+  5,
+  4,
+  3,
+  6,
+  5,
+  4,
+  4,
+  5,
+  5,
+  4,
+  3,
+  6,
+  5,
+  5,
+  4,
+  3,
+  7,
+  5
+ ]
+}

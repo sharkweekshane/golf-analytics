@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block title %}Timeline{% endblock %}
+{% block content %}
+<h1>Timeline</h1>
+<p class="sub">Accepted events, newest first: auto-accepted ones and those you accepted or edited. The dashboard draws the same events on its charts.</p>
+<section class="card">
+  {% if events %}
+  <div class="table-wrap"><table>
+    <thead><tr><th>Date</th><th>Type</th><th>Summary</th><th>Coach</th><th>Focus</th><th>Source</th></tr></thead>
+    <tbody>
+    {% for e in events %}
+      <tr>
+        <td>{{ e.date or "?" }}{% if e.date_precision and e.date_precision not in ("exact", "day") %} <span class="badge">{{ e.date_precision }}</span>{% endif %}</td>
+        <td>{{ e.event_type.replace("_", " ") }}{% if e.is_planned %} <span class="badge">planned</span>{% endif %}</td>
+        <td>{{ e.summary or "" }}</td>
+        <td>{{ e.coach or "" }}</td>
+        <td class="small">{{ e.focus_text }}</td>
+        <td class="small muted">{{ e.doc_title or e.doc_id }}{% if e.review_decision %} <span class="badge ok">{{ e.review_decision }}</span>{% endif %}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table></div>
+  {% else %}
+  <p class="muted">No accepted events yet. Add one with <a href="/inbox#quick">Quick entry</a> (no API key needed) or <code>golf add "..." --type lesson</code>, sync your notes, or review pending events.</p>
+  {% endif %}
+  <form method="post" action="/notes/sync" class="actions"><button type="submit"{% if not key_set %} class="needs-key" disabled title="Needs ANTHROPIC_API_KEY in .env"{% endif %}>Sync Apple Notes now</button>
+    <a class="btn" href="/inbox#quick">Quick entry</a></form>
+  {% if not key_set %}<p class="small muted">Syncing notes needs a Claude API key in <code>.env</code>; Quick entry does not.</p>{% endif %}
+</section>
+{% endblock %}

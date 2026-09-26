@@ -1,0 +1,35 @@
+# macOS
+.DS_Store
+
+# Python (.venv is a symlink to ~/.venvs/golf-analytics; ".venv*" also catches iCloud's ".venv 2" copies)
+.venv*
+__pycache__/
+*.pyc
+*.egg-info/
+.pytest_cache/
+
+# Secrets
+.env
+.env.*
+!.env.example
+
+# ALL personal data lives under data/ and is never committed:
+# the 18Birdies archive (email, phone, friends list), golf.db, screenshots,
+# notebook photos, note text, the LLM response cache, review files, built dashboards.
+data/
+
+# Safety net: the same kinds of files saved anywhere else in the project by mistake.
+18Birdies_archive*.json
+*.db
+*.db-journal
+*.sqlite
+*.sqlite3
+*.heic
+*.heif
+
+# Your coaches (names, nicknames, initials), practice places and bag: personal, so local only.
+# entities.example.yaml shows the format; `golf init` writes an empty entities.yaml.
+entities.yaml
+
+# Local tooling
+.claude/

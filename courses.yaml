@@ -1,0 +1,397 @@
+# courses.yaml: your course reference data (ratings, slopes, par and stroke index), checked by hand.
+# Format and a worked example: courses.example.yaml (synthetic; do not copy its club here).
+#   golf courses check                 which clubs need an entry (club ids come from your 18Birdies export)
+#   golf courses autofill <club_id>    proposes an entry from OpenGolfAPI; confirm it against the scorecard
+#   golf courses sync                  loads this file and recomputes the handicap index
+#
+# Filled in 2026-09-25 from the four clubs in the 18Birdies export. Every tee below says where its
+# rating came from (rating_source). checked_on is set only where a second, independent source gave the
+# same rating/slope. Public course information only.
+#
+# The export names the facility, never the course, nine or tee. Two checks tie rounds to a layout:
+# - the par checksum: sum of par over the holes played == strokes - score, for every round;
+# - the export's own birdie/par/bogey/double counts, recomputed from the hole scores and the par
+#   layout below (`golf courses check`: par_pattern_mismatch). A 9-hole round on an 18-hole course is
+#   placed on the one nine that passes both (golf.courses.infer_nine); no per-round entries needed.
+#
+# TODO(Shane): two items below are marked TODO (Butter Brook: the tee, and its 9-hole ratings).
+clubs:
+  95cbdd20-86ac-11e4-8c28-020000005b00:
+    name: Southborough Golf Club
+    courses:
+      # Source: the club's own scorecard (southboroughgolfclub.com, Scorecard page), which prints
+      # 18-hole-equivalent ratings for the nine played twice (White 64.2/113): the 9-hole rating is half
+      # the course rating and the same slope. Par 35 = strokes - score on every round. Handicap (SI)
+      # 1-9 as printed on the card (OpenGolfAPI's SIs and hole-1/9 yardages are from an older card).
+      # 18Birdies' course page has the same card: White (M) 2519 yds, 32.1/113 per nine.
+      southborough:
+        name: Southborough Golf Club
+        holes: 9
+        source: club scorecard
+        source_ref: http://www.southboroughgolfclub.com/-scorecard
+        tees:
+        # The tee played (18Birdies' GPS shot tracking records teeName White).
+        - name: White
+          gender: M
+          par: 35
+          cr18: 64.2
+          slope18: 113
+          cr_f9: 32.1
+          slope_f9: 113
+          rating_source: club scorecard 64.2/113 (18) = 32.1/113 per nine; 18Birdies course page agrees
+          checked_on: '2026-09-25'
+          is_default: true
+          holes:
+          - {hole: 1, par: 4, si: 3, yards: 277}
+          - {hole: 2, par: 3, si: 9, yards: 128}
+          - {hole: 3, par: 5, si: 5, yards: 416}
+          - {hole: 4, par: 4, si: 2, yards: 332}
+          - {hole: 5, par: 4, si: 1, yards: 351}
+          - {hole: 6, par: 4, si: 8, yards: 301}
+          - {hole: 7, par: 3, si: 6, yards: 171}
+          - {hole: 8, par: 4, si: 7, yards: 301}
+          - {hole: 9, par: 4, si: 4, yards: 242}
+        - name: Blue
+          gender: M
+          par: 35
+          cr18: 65.8
+          slope18: 115
+          cr_f9: 32.9
+          slope_f9: 115
+          rating_source: club scorecard 65.8/115 (18) = 32.9/115 per nine; 18Birdies course page agrees
+          checked_on: '2026-09-25'
+          holes:
+          - {hole: 1, par: 4, si: 3, yards: 295}
+          - {hole: 2, par: 3, si: 9, yards: 140}
+          - {hole: 3, par: 5, si: 5, yards: 431}
+          - {hole: 4, par: 4, si: 2, yards: 345}
+          - {hole: 5, par: 4, si: 1, yards: 362}
+          - {hole: 6, par: 4, si: 8, yards: 314}
+          - {hole: 7, par: 3, si: 6, yards: 180}
+          - {hole: 8, par: 4, si: 7, yards: 304}
+          - {hole: 9, par: 4, si: 4, yards: 282}
+        - name: Gold
+          gender: F
+          par: 35
+          cr18: 64.6
+          slope18: 109
+          cr_f9: 32.3
+          slope_f9: 109
+          rating_source: club scorecard 64.6/109 (18) = 32.3/109 per nine; 18Birdies agrees (women)
+          checked_on: '2026-09-25'
+          holes:
+          - {hole: 1, par: 4, si: 3, yards: 271}
+          - {hole: 2, par: 3, si: 9, yards: 109}
+          - {hole: 3, par: 5, si: 5, yards: 337}
+          - {hole: 4, par: 4, si: 2, yards: 317}
+          - {hole: 5, par: 4, si: 1, yards: 271}
+          - {hole: 6, par: 4, si: 8, yards: 222}
+          - {hole: 7, par: 3, si: 6, yards: 157}
+          - {hole: 8, par: 4, si: 7, yards: 272}
+          - {hole: 9, par: 4, si: 4, yards: 223}
+
+  9529d0c0-86ac-11e4-8c28-020000005b00:
+    name: Butter Brook
+    courses:
+      # Contains data from OpenGolfAPI (https://opengolfapi.org), made available under the
+      # Open Database License (ODbL) 1.0: https://opendatacommons.org/licenses/odbl/1-0/
+      # Par and handicap per hole: OpenGolfAPI, identical on 18Birdies' course page. OpenGolfAPI's
+      # per-hole yardages add up to 18Birdies' current card (White 5645, Blue 6226, Black 6810), so the
+      # ratings are 18Birdies' for that card. OpenGolfAPI and stymie.golf list older totals and ratings
+      # (White 5617 yds 68.6/120, Blue 6174 70.4/128, Black 6702 72.5/133): not checked for that reason.
+      butter-brook:
+        name: Butter Brook Golf Club
+        holes: 18
+        source: opengolfapi
+        source_ref: db1dd409-94be-499f-807b-49a2405d4277
+        tees:
+        # TODO(Shane): confirm the tee you played here (White is assumed: you play White elsewhere).
+        # TODO(Shane): no source found publishes 9-hole ratings for Butter Brook, so cr_f9/cr_b9 split the
+        # 18-hole 68.2 by yardage (White front 2925 yds, back 2720: 35.3 / 32.9) instead of 50/50. 18Birdies'
+        # own number for your front nine (51.9 on a 63) implies about 35.4 for the front, which agrees.
+        # Replace both with the USGA NCRDB front/back values, then set checked_on.
+        - name: White
+          gender: M
+          par: 72
+          cr18: 68.2
+          slope18: 120
+          cr_f9: 35.3
+          slope_f9: 120
+          cr_b9: 32.9
+          slope_b9: 120
+          rating_source: 18Birdies course page 68.2/120; 9-hole values split by yardage (approximation; 18Birdies implies ~35.4 front)
+          checked_on: ''
+          is_default: true
+          holes:
+          - {hole: 1, par: 5, si: 11, yards: 477}
+          - {hole: 2, par: 4, si: 15, yards: 286}
+          - {hole: 3, par: 3, si: 5, yards: 130}
+          - {hole: 4, par: 4, si: 7, yards: 373}
+          - {hole: 5, par: 3, si: 17, yards: 118}
+          - {hole: 6, par: 4, si: 1, yards: 377}
+          - {hole: 7, par: 5, si: 9, yards: 471}
+          - {hole: 8, par: 3, si: 13, yards: 144}
+          - {hole: 9, par: 5, si: 3, yards: 549}
+          - {hole: 10, par: 4, si: 10, yards: 308}
+          - {hole: 11, par: 3, si: 6, yards: 173}
+          - {hole: 12, par: 5, si: 18, yards: 434}
+          - {hole: 13, par: 4, si: 14, yards: 266}
+          - {hole: 14, par: 3, si: 16, yards: 138}
+          - {hole: 15, par: 4, si: 2, yards: 351}
+          - {hole: 16, par: 5, si: 12, yards: 420}
+          - {hole: 17, par: 4, si: 4, yards: 330}
+          - {hole: 18, par: 4, si: 8, yards: 300}
+        - name: Blue
+          gender: M
+          par: 72
+          cr18: 70.4
+          slope18: 132
+          rating_source: 18Birdies course page 70.4/132
+          checked_on: ''
+          is_default: false
+          holes:
+          - {hole: 1, par: 5, si: 11, yards: 507}
+          - {hole: 2, par: 4, si: 15, yards: 293}
+          - {hole: 3, par: 3, si: 5, yards: 175}
+          - {hole: 4, par: 4, si: 7, yards: 396}
+          - {hole: 5, par: 3, si: 17, yards: 132}
+          - {hole: 6, par: 4, si: 1, yards: 401}
+          - {hole: 7, par: 5, si: 9, yards: 492}
+          - {hole: 8, par: 3, si: 13, yards: 157}
+          - {hole: 9, par: 5, si: 3, yards: 551}
+          - {hole: 10, par: 4, si: 10, yards: 374}
+          - {hole: 11, par: 3, si: 6, yards: 195}
+          - {hole: 12, par: 5, si: 18, yards: 501}
+          - {hole: 13, par: 4, si: 14, yards: 309}
+          - {hole: 14, par: 3, si: 16, yards: 175}
+          - {hole: 15, par: 4, si: 2, yards: 377}
+          - {hole: 16, par: 5, si: 12, yards: 475}
+          - {hole: 17, par: 4, si: 4, yards: 394}
+          - {hole: 18, par: 4, si: 8, yards: 322}
+        - name: Black
+          gender: M
+          par: 72
+          cr18: 73.4
+          slope18: 141
+          rating_source: 18Birdies course page 73.4/141
+          checked_on: ''
+          is_default: false
+          holes:
+          - {hole: 1, par: 5, si: 11, yards: 517}
+          - {hole: 2, par: 4, si: 15, yards: 316}
+          - {hole: 3, par: 3, si: 5, yards: 210}
+          - {hole: 4, par: 4, si: 7, yards: 403}
+          - {hole: 5, par: 3, si: 17, yards: 136}
+          - {hole: 6, par: 4, si: 1, yards: 436}
+          - {hole: 7, par: 5, si: 9, yards: 554}
+          - {hole: 8, par: 3, si: 13, yards: 171}
+          - {hole: 9, par: 5, si: 3, yards: 618}
+          - {hole: 10, par: 4, si: 10, yards: 383}
+          - {hole: 11, par: 3, si: 6, yards: 249}
+          - {hole: 12, par: 5, si: 18, yards: 521}
+          - {hole: 13, par: 4, si: 14, yards: 355}
+          - {hole: 14, par: 3, si: 16, yards: 199}
+          - {hole: 15, par: 4, si: 2, yards: 447}
+          - {hole: 16, par: 5, si: 12, yards: 524}
+          - {hole: 17, par: 4, si: 4, yards: 416}
+          - {hole: 18, par: 4, si: 8, yards: 355}
+
+  9b54a470-86ac-11e4-8c28-020000005b00:
+    name: Oyster Bay Golf Links
+    courses:
+      # Contains data from OpenGolfAPI (https://opengolfapi.org), made available under the
+      # Open Database License (ODbL) 1.0: https://opendatacommons.org/licenses/odbl/1-0/
+      # Par and handicap per hole identical on 18Birdies' course page; par 70 = strokes - score.
+      oyster-bay-golf-links:
+        name: Oyster Bay Golf Links
+        holes: 18
+        source: opengolfapi
+        source_ref: c13468cd-7953-42b3-9f1e-fef6bad3761c
+        tees:
+        # The tee played (18Birdies' GPS shot tracking records teeName White). 18Birdies' course page
+        # lists 67.7/119 for it, perhaps a newer rating: check USGA NCRDB if you can.
+        - name: White
+          gender: M
+          par: 70
+          yards: 5576
+          cr18: 67.6
+          slope18: 120
+          rating_source: opengolfapi 67.6/120; golflink.com and golfscorekeeper.com agree
+          checked_on: '2026-09-25'
+          is_default: true
+          holes:
+          - {hole: 1, par: 4, si: 7, yards: 309}
+          - {hole: 2, par: 4, si: 1, yards: 359}
+          - {hole: 3, par: 4, si: 3, yards: 394}
+          - {hole: 4, par: 3, si: 11, yards: 159}
+          - {hole: 5, par: 5, si: 9, yards: 473}
+          - {hole: 6, par: 3, si: 17, yards: 135}
+          - {hole: 7, par: 4, si: 13, yards: 333}
+          - {hole: 8, par: 3, si: 15, yards: 139}
+          - {hole: 9, par: 5, si: 5, yards: 470}
+          - {hole: 10, par: 4, si: 4, yards: 399}
+          - {hole: 11, par: 4, si: 6, yards: 400}
+          - {hole: 12, par: 4, si: 18, yards: 313}
+          - {hole: 13, par: 4, si: 14, yards: 276}
+          - {hole: 14, par: 5, si: 16, yards: 474}
+          - {hole: 15, par: 3, si: 8, yards: 103}
+          - {hole: 16, par: 4, si: 2, yards: 389}
+          - {hole: 17, par: 3, si: 10, yards: 106}
+          - {hole: 18, par: 4, si: 12, yards: 345}
+        - name: Blue
+          gender: M
+          par: 70
+          yards: 6325
+          cr18: 69.8
+          slope18: 130
+          rating_source: opengolfapi
+          checked_on: ''
+          is_default: false
+          holes:
+          - {hole: 1, par: 4, si: 7, yards: 380}
+          - {hole: 2, par: 4, si: 1, yards: 420}
+          - {hole: 3, par: 4, si: 3, yards: 425}
+          - {hole: 4, par: 3, si: 11, yards: 180}
+          - {hole: 5, par: 5, si: 9, yards: 530}
+          - {hole: 6, par: 3, si: 17, yards: 155}
+          - {hole: 7, par: 4, si: 13, yards: 380}
+          - {hole: 8, par: 3, si: 15, yards: 150}
+          - {hole: 9, par: 5, si: 5, yards: 550}
+          - {hole: 10, par: 4, si: 4, yards: 430}
+          - {hole: 11, par: 4, si: 6, yards: 430}
+          - {hole: 12, par: 4, si: 18, yards: 360}
+          - {hole: 13, par: 4, si: 14, yards: 320}
+          - {hole: 14, par: 5, si: 16, yards: 525}
+          - {hole: 15, par: 3, si: 8, yards: 135}
+          - {hole: 16, par: 4, si: 2, yards: 450}
+          - {hole: 17, par: 3, si: 10, yards: 120}
+          - {hole: 18, par: 4, si: 12, yards: 385}
+        - name: Gold
+          gender: M
+          par: 70
+          yards: 6685
+          cr18: 72.1
+          slope18: 136
+          rating_source: opengolfapi
+          checked_on: ''
+          is_default: false
+          holes:
+          - {hole: 1, par: 4, si: 7, yards: 390}
+          - {hole: 2, par: 4, si: 1, yards: 450}
+          - {hole: 3, par: 4, si: 3, yards: 460}
+          - {hole: 4, par: 3, si: 11, yards: 190}
+          - {hole: 5, par: 5, si: 9, yards: 550}
+          - {hole: 6, par: 3, si: 17, yards: 165}
+          - {hole: 7, par: 4, si: 13, yards: 390}
+          - {hole: 8, par: 3, si: 15, yards: 160}
+          - {hole: 9, par: 5, si: 5, yards: 560}
+          - {hole: 10, par: 4, si: 4, yards: 440}
+          - {hole: 11, par: 4, si: 6, yards: 450}
+          - {hole: 12, par: 4, si: 18, yards: 370}
+          - {hole: 13, par: 4, si: 14, yards: 330}
+          - {hole: 14, par: 5, si: 16, yards: 535}
+          - {hole: 15, par: 3, si: 8, yards: 210}
+          - {hole: 16, par: 4, si: 2, yards: 470}
+          - {hole: 17, par: 3, si: 10, yards: 165}
+          - {hole: 18, par: 4, si: 12, yards: 400}
+
+  ae870a60-86ac-11e4-8c28-020000005b00:
+    name: Barefoot Resort & Golf
+    courses:
+      # Four courses share this 18Birdies facility id (Dye 72, Love 72, Norman 72, Fazio 71). Only the
+      # Dye Course is listed: of the four par layouts, only Dye's fits the round played here (the par
+      # checksum and the export's own par/bogey/double counts; Fazio is par 71, and Love and Norman give
+      # a birdie the export doesn't have). Source: the resort's Dye scorecard (barefootgolf.com);
+      # mScorecard has the same pars, OpenGolfAPI the same handicaps and ratings (its Dye pars are wrong).
+      # A single listed course takes every round at this club: if you play Love, Norman or Fazio, add
+      # that course and map the round under rounds: {<round id>: {course: ...}}.
+      barefoot-dye:
+        name: Barefoot Resort - Dye Course
+        holes: 18
+        source: resort scorecard
+        source_ref: https://barefootgolf.com/barefoot-golf-courses/dye-course/
+        tees:
+        # The tee played: 18Birdies' own per-round handicap number for the round here reproduces
+        # exactly with this rating and net double bogey (the export has no GPS tee for it).
+        - name: White
+          gender: M
+          par: 72
+          yards: 6005
+          cr18: 69.7
+          slope18: 128
+          rating_source: barefootgolf.com Dye scorecard 69.7/128; OpenGolfAPI agrees
+          checked_on: '2026-09-25'
+          is_default: true
+          holes:
+          - {hole: 1, par: 4, si: 6}
+          - {hole: 2, par: 4, si: 14}
+          - {hole: 3, par: 3, si: 12}
+          - {hole: 4, par: 4, si: 18}
+          - {hole: 5, par: 5, si: 10}
+          - {hole: 6, par: 3, si: 8}
+          - {hole: 7, par: 4, si: 2}
+          - {hole: 8, par: 5, si: 16}
+          - {hole: 9, par: 4, si: 4}
+          - {hole: 10, par: 4, si: 13}
+          - {hole: 11, par: 4, si: 1}
+          - {hole: 12, par: 5, si: 15}
+          - {hole: 13, par: 4, si: 17}
+          - {hole: 14, par: 4, si: 3}
+          - {hole: 15, par: 3, si: 7}
+          - {hole: 16, par: 5, si: 11}
+          - {hole: 17, par: 3, si: 9}
+          - {hole: 18, par: 4, si: 5}
+        - name: Green
+          gender: M
+          par: 72
+          yards: 5504
+          cr18: 67.2
+          slope18: 119
+          rating_source: barefootgolf.com Dye scorecard 67.2/119; OpenGolfAPI agrees
+          checked_on: '2026-09-25'
+          holes:
+          - {hole: 1, par: 4, si: 6}
+          - {hole: 2, par: 4, si: 14}
+          - {hole: 3, par: 3, si: 12}
+          - {hole: 4, par: 4, si: 18}
+          - {hole: 5, par: 5, si: 10}
+          - {hole: 6, par: 3, si: 8}
+          - {hole: 7, par: 4, si: 2}
+          - {hole: 8, par: 5, si: 16}
+          - {hole: 9, par: 4, si: 4}
+          - {hole: 10, par: 4, si: 13}
+          - {hole: 11, par: 4, si: 1}
+          - {hole: 12, par: 5, si: 15}
+          - {hole: 13, par: 4, si: 17}
+          - {hole: 14, par: 4, si: 3}
+          - {hole: 15, par: 3, si: 7}
+          - {hole: 16, par: 5, si: 11}
+          - {hole: 17, par: 3, si: 9}
+          - {hole: 18, par: 4, si: 5}
+        - name: Black
+          gender: M
+          par: 72
+          yards: 6634
+          cr18: 72.9
+          slope18: 134
+          rating_source: barefootgolf.com Dye scorecard 72.9/134; OpenGolfAPI agrees
+          checked_on: '2026-09-25'
+          holes:
+          - {hole: 1, par: 4, si: 6}
+          - {hole: 2, par: 4, si: 14}
+          - {hole: 3, par: 3, si: 12}
+          - {hole: 4, par: 4, si: 18}
+          - {hole: 5, par: 5, si: 10}
+          - {hole: 6, par: 3, si: 8}
+          - {hole: 7, par: 4, si: 2}
+          - {hole: 8, par: 5, si: 16}
+          - {hole: 9, par: 4, si: 4}
+          - {hole: 10, par: 4, si: 13}
+          - {hole: 11, par: 4, si: 1}
+          - {hole: 12, par: 5, si: 15}
+          - {hole: 13, par: 4, si: 17}
+          - {hole: 14, par: 4, si: 3}
+          - {hole: 15, par: 3, si: 7}
+          - {hole: 16, par: 5, si: 11}
+          - {hole: 17, par: 3, si: 9}
+          - {hole: 18, par: 4, si: 5}

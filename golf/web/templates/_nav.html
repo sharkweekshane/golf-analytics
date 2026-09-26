@@ -1,0 +1,9 @@
+<nav class="gnav" aria-label="Main">
+  <div class="gnav-in">
+    <a class="brand" href="/">Golf</a>
+    {% for label, href in nav %}
+    <a href="{{ href }}"{% if href == active %} class="on" aria-current="page"{% endif %}>{{ label }}{% if href == '/review' and (counts.rounds + counts.events) %} <span class="pill" title="waiting for review">{{ counts.rounds + counts.events }}</span>{% endif %}{% if href == '/status#birdies' %} <span class="pill{% if not counts.export_stale %} fresh{% endif %}" title="{% if counts.export_age is none %}no 18Birdies export imported yet{% else %}last 18Birdies export is {{ counts.export_age|plural("day") }} old{% endif %}">{% if counts.export_age is none %}none{% else %}{{ counts.export_age }}d{% endif %}</span>{% endif %}</a>
+    {% endfor %}
+    <span class="gnav-note">local only &middot; 127.0.0.1</span>
+  </div>
+</nav>

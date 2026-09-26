@@ -1,0 +1,31 @@
+# Copy to entities.yaml (gitignore it if you prefer) and fill in your own.
+# The note extractor uses these to turn "MR" / "coach Mike" into one coach, to recognise your practice
+# spots, and to tell "added" from "replaced" for equipment. Editing this file re-extracts notes on the
+# next sync (served from the cache where nothing else changed). All names below are placeholders.
+
+coaches:
+  - name: Mike Rossi              # canonical name used in the timeline
+    aliases: [Mike, coach Mike]
+    initials: [MR]
+  - name: Dana Lee
+    aliases: [Dana]
+    initials: [DL]
+
+locations:
+  - name: Pine Hill
+    kind: range                   # range | course | indoor_sim | studio | home | gym | other
+    aliases: [PH, pine hill range]
+  - name: Stow North
+    kind: course
+    aliases: [Stow]
+  - name: home net
+    kind: home
+    aliases: [garage, net]
+
+bag:                              # what is in the bag now, one line per club
+  - "Driver: Ping G440 10.5, Ventus Blue 6S"
+  - "3W: TaylorMade Qi35 15"
+  - "Irons: Titleist T200 5-PW"
+  - "Wedges: Vokey SM10 50.12, 56.10"
+  - "Putter: Odyssey White Hot #7"
+  - "Ball: Pro V1"
