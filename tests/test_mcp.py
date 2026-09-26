@@ -146,3 +146,10 @@ def test_missing_database_is_a_tool_error(cfg):
 
     anyio.run(go)
     assert not cfg.db_path.exists()                    # opening read-only never creates the file
+
+
+def test_query_sql_stops_a_runaway_query_and_hides_blobs(ro):
+    runaway = "WITH RECURSIVE c(x) AS (SELECT 1 UNION ALL SELECT x + 1 FROM c) SELECT count(*) FROM c"
+    with pytest.raises(M.QueryRejected, match="longer than 0.2 seconds"):
+        M.query_sql(ro, runaway, seconds=0.2)
+    assert M.query_sql(ro, "SELECT X'0A0B' AS b")["rows"] == [["<blob 2 bytes>"]]    # the connection still works

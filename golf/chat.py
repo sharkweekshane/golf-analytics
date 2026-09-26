@@ -149,6 +149,7 @@ def chat_bundle(conn: sqlite3.Connection, cfg: Config, *, today: date | None = N
         "player": cfg.player_name,
         "data_through": dash.get("data_through"),
         "headline": {
+            "averages": averages_sentence(rounds),
             "kpis": [{"label": k.get("label"), "value": k.get("display"), "note": k.get("sub")} for k in dash.get("kpis") or []],
             "trend": (dash.get("hero") or {}).get("verdict"),
             "scoring_split": (dash.get("identity") or {}).get("sentence"),
@@ -162,6 +163,26 @@ def chat_bundle(conn: sqlite3.Connection, cfg: Config, *, today: date | None = N
     }
     bundle["content_sha"] = content_sha(bundle)
     return bundle
+
+
+def averages_sentence(rounds: list[dict[str, Any]]) -> str | None:
+    """The plain scoring averages, stated outright. Without this line a model reading the headline took the
+    last-5 figure (or the putts-tracked subset's) for the all-rounds average."""
+    vals = [r["to_par_per9"] for r in rounds if isinstance(r.get("to_par_per9"), (int, float))]
+    if not vals:
+        return None
+    mean = lambda xs: sum(xs) / len(xs)
+    parts = [f"Scoring average over all {len(vals)} rounds: {mean(vals):+.1f} to par per 9 holes",
+             f"last 5 rounds {mean(vals[-5:]):+.1f}" if len(vals) >= 5 else None,
+             f"best 9 {min(vals):+.0f}"]
+    by_course: dict[str, list[float]] = {}
+    for r in rounds:
+        if isinstance(r.get("to_par_per9"), (int, float)):
+            by_course.setdefault(r.get("course") or "?", []).append(r["to_par_per9"])
+    if len(by_course) > 1:
+        parts.append("by course: " + ", ".join(f"{c} {mean(v):+.1f} ({len(v)} round{'s' if len(v) != 1 else ''})"
+                                                for c, v in sorted(by_course.items(), key=lambda kv: -len(kv[1]))))
+    return "; ".join(p for p in parts if p) + "."
 
 
 def content_sha(bundle: dict[str, Any]) -> str:

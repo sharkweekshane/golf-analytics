@@ -7,11 +7,12 @@
 <title>{% block title %}Golf{% endblock %} &middot; Golf</title>
 <link rel="stylesheet" href="/static/app.css">
 <link rel="stylesheet" href="/static/nav.css">
+{% block head %}{% endblock %}
 </head>
 <body>
 {% include "_nav.html" %}
 <main class="wrap{% block wrapclass %}{% endblock %}">
-  {% if not key_set %}
+  {% block keybanner %}{% if not key_set %}
   <div class="banner" role="note">
     <span aria-hidden="true">&#9650;</span>
     <div><strong>No Claude API key yet.</strong> Screenshot, note and notebook extraction need one.
@@ -19,7 +20,7 @@
       <code>.env</code> in the project folder (copy <code>.env.example</code>), then run the upload again.
       Imports, review and the dashboard work without it.</div>
   </div>
-  {% endif %}
+  {% endif %}{% endblock %}
   {% if msg %}<div class="flash ok" role="status">{{ msg }}</div>{% endif %}
   {% if err %}<div class="flash err" role="alert">{{ err }}</div>{% endif %}
   {% block content %}{% endblock %}

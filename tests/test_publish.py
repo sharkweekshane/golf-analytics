@@ -317,3 +317,23 @@ def test_the_checks_fail_closed_when_golf_db_cannot_be_read(tmp_path):
     (tmp_path / "a.txt").write_text("nothing personal\n")
     assert [f.code for f in privacy.privacy_check(["a.txt"], root=tmp_path, db_path=bad)] == ["note_check"]
     assert privacy.site_findings(site, db_path=tmp_path / "missing.db") == []        # no database: nothing to check
+
+
+def test_api_keys_are_caught_before_a_commit_and_a_publish(tmp_path):
+    """A Meta Model API key (pipe or underscore form), an Anthropic key, or MUSE_API_KEY given a value is
+    blocked by the pre-commit check and the site check. The fakes are built here so this file stays clean."""
+    meta_pipe = "LLM" + "|" + "9" * 15 + "|" + "AbCdEf123456-_xyz"
+    meta_under = "LLM" + "_" + "8" * 15 + "_" + "AbCdEf123456-_xyz"
+    anthropic = "sk-ant-" + "api03-" + "A" * 40
+    muse_env = "MUSE_API_KEY" + "=" + "abcdef123456"
+    for leak in (meta_pipe, meta_under, anthropic, muse_env, f"export {muse_env}", f"key: '{meta_under}'"):
+        codes = [f.code for f in privacy.content_findings("README.md", f"line one\nsee {leak} here\n")]
+        assert codes == ["secret"], leak
+        site = tmp_path / "site"
+        site.mkdir(exist_ok=True)
+        (site / "index.html").write_text(f"<p>{leak}</p>\n")
+        assert "secret" in {f.code for f in privacy.site_findings(site)}, leak
+    for fine in ("ANTHROPIC_API_KEY=sk-ant-...", "sk-ant-test-DO-NOT-PRINT-123", "LLM|fakeaccount77|fake-secret",
+                 "MUSE_API_KEY in the environment overrides the Keychain", "MUSE_API_KEY=$KEY",
+                 'env_var="MUSE_API_KEY"', "LLM|<id>|<secret>"):
+        assert privacy.content_findings("README.md", fine + "\n") == [], fine

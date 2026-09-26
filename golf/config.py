@@ -46,8 +46,16 @@ class Config:
         return self.data_dir / "site"
 
 
+# Keys that must never come from a file: the Caddie's Meta key lives in the macOS Keychain (golf.secrets).
+# A line for one of these in .env is skipped (never put in the environment) and its name noted here, so
+# `golf caddie status` and the Status page can say to delete it. The value is never kept or shown.
+NEVER_FROM_DOTENV = frozenset({"MUSE_API_KEY"})
+DOTENV_IGNORED: set[str] = set()
+
+
 def load_dotenv(path: Path) -> None:
-    """Minimal .env loader: KEY=VALUE lines; never overrides variables already set."""
+    """Minimal .env loader: KEY=VALUE lines; never overrides variables already set, and never loads the
+    keys in NEVER_FROM_DOTENV."""
     if not path.exists():
         return
     for line in path.read_text().splitlines():
@@ -55,9 +63,14 @@ def load_dotenv(path: Path) -> None:
         if not line or line.startswith("#") or "=" not in line:
             continue
         key, _, value = line.partition("=")
+        key = key.strip()
+        name = key.removeprefix("export ").strip()          # `export MUSE_API_KEY=...` is caught too
+        if name in NEVER_FROM_DOTENV:
+            DOTENV_IGNORED.add(name)
+            continue
         value = value.strip().strip('"').strip("'")
-        if value and key.strip() not in os.environ:
-            os.environ[key.strip()] = value
+        if value and key not in os.environ:
+            os.environ[key] = value
 
 
 def load_config(root: Path | None = None) -> Config:

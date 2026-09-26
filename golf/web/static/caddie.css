@@ -1,0 +1,114 @@
+/* The Caddie page: the claude.ai "Shane's Caddie" look (fairway green, flag gold) on the app's own tokens.
+   No web fonts: this app loads nothing from the network, so the faces are the Mac's own. */
+.caddie {
+  --cd-fairway: #2e6b4f; --cd-fairway-soft: #e2eee6; --cd-flag: #b07f14; --cd-flag-soft: #f7ecd0;
+  --cd-bad: #b4442f; --cd-user: #e7ede8; --cd-line: var(--grid); --cd-line-strong: var(--axis);
+  --cd-display: "Avenir Next Condensed", "Arial Narrow", system-ui, sans-serif;
+  --cd-mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:where(:not([data-theme="light"])) .caddie {
+    --cd-fairway: #6dbe93; --cd-fairway-soft: #1c2c23; --cd-flag: #e3b23c; --cd-flag-soft: #2d2717;
+    --cd-bad: #e0826d; --cd-user: #1d2922;
+  }
+}
+:root[data-theme="dark"] .caddie {
+  --cd-fairway: #6dbe93; --cd-fairway-soft: #1c2c23; --cd-flag: #e3b23c; --cd-flag-soft: #2d2717;
+  --cd-bad: #e0826d; --cd-user: #1d2922;
+}
+
+.wrap.caddie-wrap { max-width: 1180px; padding-bottom: 0; }
+.cd-cmd { user-select: all; margin: 6px 0; }
+.caddie { display: grid; grid-template-columns: 300px minmax(0, 1fr); gap: 24px; align-items: start; font-size: 15px; }
+/* Narrow screens: the chat comes first (the card follows it), so the question box and starters are on screen. */
+@media (max-width: 860px) { .caddie { grid-template-columns: minmax(0, 1fr); gap: 14px; } .cd-chat { order: -1; } }
+
+/* ---------- the card (left rail) ---------- */
+.cd-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 16px;
+  display: flex; flex-direction: column; gap: 16px; position: sticky; top: 64px; min-width: 0; }
+@media (max-width: 860px) { .cd-card { position: static; gap: 10px; } .cd-hide-sm, .cd-rows .lab small { display: none; } }
+.cd-brand { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+.cd-brand h1 { font: 700 30px/1 var(--cd-display); letter-spacing: .01em; margin: 0; }
+.cd-asof { font: 500 12px/1.2 var(--cd-mono); color: var(--muted); text-align: right; }
+.cd-eyebrow { font: 600 12px/1 var(--cd-display); letter-spacing: .12em; text-transform: uppercase; color: var(--muted); margin: 0 0 8px; }
+.cd-rows { display: grid; grid-template-columns: minmax(0, 1fr) auto; border-top: 1px solid var(--cd-line); }
+.cd-rows > div { padding: 7px 0; border-bottom: 1px solid var(--cd-line); min-width: 0; }
+.cd-rows .lab { font-size: 13px; color: var(--ink-2); }
+.cd-rows .lab small { display: block; font-size: 11px; line-height: 1.3; color: var(--muted); }
+.cd-rows .val { font: 500 18px/1.2 var(--cd-mono); text-align: right; font-variant-numeric: tabular-nums; align-self: center; padding-left: 8px; }
+.cd-spark { width: 100%; height: auto; display: block; }
+.cd-spark text { font: 11px var(--cd-mono); fill: var(--muted); }
+.cd-legend { display: flex; gap: 12px; font-size: 12px; color: var(--muted); margin-top: 4px; flex-wrap: wrap; }
+.cd-legend i { display: inline-block; width: 10px; height: 10px; border-radius: 50%; background: var(--cd-fairway); vertical-align: -1px; margin-right: 5px; }
+.cd-legend i.line { border-radius: 0; height: 2px; width: 14px; vertical-align: 3px; background: var(--cd-flag); }
+table.cd-yardage { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+.cd-yardage th { font: 600 11px/1 var(--cd-display); letter-spacing: .1em; text-transform: uppercase; color: var(--muted); text-align: right; padding: 0 0 6px; border: 0; }
+.cd-yardage th:first-child, .cd-yardage td:first-child { text-align: left; }
+.cd-yardage td { font: 13px/1.2 var(--cd-mono); text-align: right; padding: 5px 0; border-top: 1px solid var(--cd-line); }
+.cd-yardage td.live, .cd-live { color: var(--cd-fairway); }
+.cd-fine { font-size: 12px; color: var(--muted); line-height: 1.4; margin: 6px 0 0; }
+.cd-model code { font-size: 11px; }
+
+/* ---------- chat ---------- */
+.cd-chat { display: flex; flex-direction: column; min-height: calc(100vh - 96px); min-width: 0; }
+@media (max-width: 860px) { .cd-chat { min-height: 60vh; } }
+.cd-thread { flex: 1; display: flex; flex-direction: column; gap: 16px; padding-bottom: 12px; }
+.cd-intro { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 18px; }
+.cd-intro h2 { font: 700 26px/1.1 var(--cd-display); margin: 0 0 6px; }
+.cd-intro p { margin: 0 0 14px; color: var(--ink-2); max-width: 62ch; }
+.cd-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+button.cd-chip { font: 600 14px/1.2 system-ui, -apple-system, sans-serif; color: var(--ink); background: var(--cd-fairway-soft);
+  border: 1px solid transparent; border-radius: 999px; padding: 8px 13px; cursor: pointer; text-align: left; }
+button.cd-chip:hover { border-color: var(--cd-fairway); }
+button.cd-chip:disabled { cursor: default; }
+.caddie button:focus-visible, .caddie textarea:focus-visible { outline: 2px solid var(--cd-fairway); outline-offset: 2px; }
+.cd-msg { max-width: 100%; scroll-margin: 64px 0 120px; }  /* clear of the sticky top bar and composer */
+@media (max-width: 860px) { .cd-msg { scroll-margin: 12px 0 180px; } }
+.cd-msg.user { align-self: flex-end; background: var(--cd-user); border-radius: 12px 12px 2px 12px; padding: 9px 14px;
+  max-width: min(85%, 640px); white-space: pre-wrap; overflow-wrap: anywhere; }
+.cd-msg.bot { background: var(--surface); border: 1px solid var(--border); border-radius: 2px 12px 12px 12px; padding: 14px 16px; overflow-wrap: anywhere; }
+.cd-who { font: 600 12px/1 var(--cd-display); letter-spacing: .12em; text-transform: uppercase; color: var(--cd-fairway); margin-bottom: 8px; }
+.cd-answer { line-height: 1.5; }
+.cd-answer > :first-child { margin-top: 0; }
+.cd-answer > :last-child { margin-bottom: 0; }
+.cd-answer p, .cd-answer ul, .cd-answer ol, .cd-answer blockquote { margin: 0 0 10px; }
+.cd-answer ul, .cd-answer ol { padding-left: 22px; }
+.cd-answer li { margin: 2px 0; }
+.cd-answer h3, .cd-answer h4 { font: 700 18px/1.2 var(--cd-display); letter-spacing: .02em; margin: 14px 0 6px; }
+.cd-answer h4 { font-size: 16px; }
+.cd-answer code { font: 12px var(--cd-mono); background: var(--cd-fairway-soft); padding: 1px 4px; border-radius: 4px; }
+.cd-answer pre { background: var(--wash); }
+.cd-answer pre code { background: none; padding: 0; }
+.cd-answer blockquote { border-left: 3px solid var(--cd-line-strong); padding: 2px 10px; color: var(--ink-2); }
+.cd-answer hr { border: 0; border-top: 1px solid var(--cd-line); margin: 12px 0; }
+.cd-answer .tbl { overflow-x: auto; margin: 6px 0 12px; }
+.cd-answer table { border-collapse: collapse; font-size: 13px; font-variant-numeric: tabular-nums; width: auto; min-width: 60%; }
+.cd-answer th { font: 600 12px/1.2 var(--cd-display); letter-spacing: .08em; text-transform: uppercase; color: var(--muted);
+  text-align: left; padding: 4px 12px 6px 0; border-top: 0; border-bottom: 1px solid var(--cd-line-strong); }
+.cd-answer td { padding: 5px 12px 5px 0; border-top: 0; border-bottom: 1px solid var(--cd-line); font-family: var(--cd-mono); font-size: 12px; }
+.cd-answer th.r, .cd-answer td.r { text-align: right; }
+.cd-answer th.c, .cd-answer td.c { text-align: center; }
+.cd-answer a { color: var(--cd-fairway); text-decoration: underline; }
+.cd-activity { font: 12px/1.5 var(--cd-mono); color: var(--muted); margin: 0 0 8px; display: flex; flex-direction: column; gap: 2px; }
+.cd-activity span::before { content: "\21B3  "; color: var(--cd-flag); }
+.cd-thinking { color: var(--muted); font-style: italic; }
+.cd-note { font-size: 12px; color: var(--muted); margin-top: 8px; }
+.cd-note.warn { color: var(--cd-bad); font-size: 13px; white-space: pre-wrap; }
+
+.cd-composer { position: sticky; bottom: 0; background: linear-gradient(to top, var(--page) 78%, transparent);
+  padding: 12px 0 calc(12px + env(safe-area-inset-bottom, 0px)); }
+.cd-box { display: flex; gap: 8px; align-items: flex-end; background: var(--surface); border: 1px solid var(--cd-line-strong); border-radius: 12px; padding: 8px; }
+.cd-box textarea { flex: 1; width: auto; border: 0; background: transparent; color: var(--ink); font: 16px/1.4 system-ui, -apple-system, sans-serif;
+  resize: none; min-height: 26px; max-height: 180px; padding: 6px; outline: none; }
+button.cd-btn { font: 700 15px/1 var(--cd-display); letter-spacing: .08em; text-transform: uppercase; border: 0; border-radius: 8px;
+  padding: 11px 16px; cursor: pointer; background: var(--cd-fairway); color: var(--surface); white-space: nowrap; }
+button.cd-btn:disabled { opacity: .45; cursor: default; }
+button.cd-btn.stop { background: var(--cd-bad); }
+.cd-opts { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; font-size: 12px; color: var(--muted); margin-top: 8px; }
+.cd-short { display: none; }
+@media (max-width: 860px) { .cd-long { display: none; } .cd-short { display: inline; } }
+/* Before the first question the composer sits under the starters instead of floating over them. */
+.cd-chat:has(#cd-intro:not([hidden])) .cd-composer { position: static; background: none; }
+.cd-opts code { font-size: 11px; }
+button.cd-link { background: none; border: 0; color: var(--ink-2); font: inherit; text-decoration: underline; cursor: pointer; padding: 0; white-space: nowrap; }
+@media (prefers-reduced-motion: reduce) { .caddie * { scroll-behavior: auto !important; transition: none !important; } }

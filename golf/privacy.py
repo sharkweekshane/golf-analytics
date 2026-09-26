@@ -36,13 +36,18 @@ _PHONE = re.compile(r"(?<![\w.+-])(?:\+?1[-. ]?)?\(?([2-9]\d{2})\)?[-. ]?([2-9]\
 # A key with a value, as JSON/dict ("email": ...) or YAML (email: ...); prose mentions don't match.
 _KEYS = "|".join(PII_KEYS)
 _PII_KEY = re.compile(rf"""(?:["']({_KEYS})["']|^\s*-?\s*({_KEYS}))\s*:\s*(?=\S)""")
+# API keys: an Anthropic key (sk-ant-api03-..., sk-ant-oat01-...), a Meta Model API key (LLM|<id>|<secret>,
+# also seen with underscores), or MUSE_API_KEY given a value. Short test placeholders (sk-ant-...,
+# LLM|fake...) don't match. The Caddie's key belongs in the Keychain, never in a file.
+_API_KEY = re.compile(r"sk-ant-[a-z]{2,8}\d{2}-[A-Za-z0-9_-]{32,}|\bLLM[|_]\d{6,}[|_][A-Za-z0-9_-]{12,}|"
+                      r"\bMUSE_API_KEY\s*[=:]\s*[\"']?[^\s\"'$<>{}()]{6,}")
 
 
 @dataclass(frozen=True)
 class Finding:
     path: str
     line: int                    # 0 = the whole file
-    code: str                    # data_dir | env | archive | database | image | email | phone | pii_key | note_text
+    code: str                    # data_dir | env | archive | database | image | email | phone | pii_key | secret | note_text
     message: str
 
     def __str__(self) -> str:
@@ -95,6 +100,8 @@ def content_findings(rel: str, text: str, note_lines: frozenset[str] = frozenset
         m = _PII_KEY.search(line)
         if m:
             out.append(Finding(rel, n, "pii_key", f"18Birdies PII key '{m.group(1) or m.group(2)}' with a value"))
+        if _API_KEY.search(line):
+            out.append(Finding(rel, n, "secret", "an API key (Anthropic or Meta Model API); keys stay out of files"))
         if note_lines and _has_note_line(_norm(line), note_lines):
             out.append(Finding(rel, n, "note_text", "a line of your own note text (from golf.db)"))
     return out
@@ -253,7 +260,8 @@ SITE_RULES: tuple[tuple[str, re.Pattern, str], ...] = (
      "a number with 5+ decimals (the dashboard rounds to 4; raw GPS coordinates look like this)"),
     ("api_cost", re.compile(r"\b(?:cost_usd|cost_total_usd|spend_usd|total_spend|billed_calls|llm_calls|api_calls|"
                             r"input_tokens|output_tokens)\b", re.IGNORECASE), "API cost or usage"),
-    ("secret", re.compile(r"sk-ant-|ANTHROPIC_API_KEY|ANTHROPIC_AUTH_TOKEN"), "an API key or its name"),
+    ("secret", re.compile(r"sk-ant-|ANTHROPIC_API_KEY|ANTHROPIC_AUTH_TOKEN|MUSE_API_KEY|"
+                          r"\bLLM[|_]\d{6,}[|_][A-Za-z0-9_-]{12,}"), "an API key or its name"),
     ("local_host", re.compile(r"127\.0\.0\.1|\blocalhost\b|\[::1\]"), "a local-machine address"),
     # 18Birdies round and club ids are UUIDs (its round ids are version 1: they encode when the round was
     # created); the public page uses its own r1..rN, so any UUID there is a leak.

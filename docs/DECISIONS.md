@@ -31,5 +31,9 @@ adapted to Shane's answers. **Where the two disagree, this file wins.**
    - No external network calls, except:
      - the Anthropic API, at extraction time
      - OpenGolfAPI, only when Shane runs `golf courses autofill`
+     - GitHub, when the public dashboard is published
+     - the Meta Model API (api.meta.ai), when Shane asks the Caddie a question (added 2026-09-26). Standard-tier
+       Muse Spark models only (Meta does not train on them); requests use `store: false`; the key is read from
+       the macOS Keychain per question and never written to disk, logs or golf.db
    - The dashboard HTML is self-contained, with no CDN.
 7. **The screenshot prompt is provisional** until Shane's real screenshots arrive. The screen guide lives in its own prompt section so it can be rewritten from real captures. `prompt_version` is bumped on every change.

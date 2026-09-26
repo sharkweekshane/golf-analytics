@@ -17,6 +17,8 @@ dashboard** can go to GitHub Pages at <https://sharkweekshane.github.io/golf-ana
 cost. The only network calls are:
 
 - to the Claude API, when something is extracted;
+- to Meta's Model API (`api.meta.ai`), only when you ask the [Caddie](#the-caddie-in-the-web-app-muse-spark) a
+  question;
 - to OpenGolfAPI, only when you run `golf courses autofill`;
 - to GitHub, only when the dashboard is published.
 
@@ -266,7 +268,7 @@ immediately; with a type (always, on the Inbox form), no API call is made, so th
 ## Daily use
 
 ```sh
-golf serve            # dashboard at http://127.0.0.1:8765, plus Inbox / Review / Timeline / 18Birdies / Status
+golf serve            # dashboard at http://127.0.0.1:8765, plus Caddie / Inbox / Review / Timeline / 18Birdies / Status
 golf notes sync       # after writing notes
 golf status           # counts, export age, pending reviews, API spend, watcher and publishing state
 golf build            # write data/site/index.html: one self-contained file, no network
@@ -342,12 +344,15 @@ so a missing credential fails with a message instead of hanging the LaunchAgent.
 | `golf build [--out PATH] [--public]` | Self-contained dashboard HTML: the local, complete version, or with `--public` the shareable one `golf publish` pushes (written to `data/site/public/index.html`) |
 | `golf serve [--port 8765] [--open]` | Local web app, bound to 127.0.0.1; also watches Downloads every minute |
 | `golf mcp` | Read-only MCP server on stdio |
+| `golf caddie status` / `key` / `ask "<question>"` | The Caddie: key set or not (never shown), model and calls so far; how to add the key; one question in Terminal |
 | `golf demo seed [--force]` / `golf demo clear` | Synthetic demo data |
 | `golf privacy-check [files or folders] [--staged]` | Scan for personal data (the pre-commit hook runs this); a folder expands to what git would commit |
 
 The web app answers only on 127.0.0.1 / localhost. It refuses other Host headers, which blocks DNS
 rebinding, and refuses POSTs from any other origin, including another port on localhost (a Jupyter or
-dev-server page). The file route serves only images under `data/`.
+dev-server page). The file route serves only images under `data/`. The Caddie's `POST /api/caddie` also
+accepts only `application/json`, which another site can't send without a CORS preflight this app never
+answers, so no other page can spend your Meta credits.
 
 When the Claude API is unreachable, overloaded or rejects the configured model, commands say
 "Claude API unreachable or busy; re-run later" instead of asking for a key; work already finished is kept
@@ -407,6 +412,91 @@ API billing. The first question asks you to allow the page to use Claude.
 - Difference from the MCP connection above: the page works anywhere but sees a nightly snapshot; Claude
   Desktop with `golf mcp` is Mac-only but reads `golf.db` live and can run any SELECT.
 
+## The Caddie in the web app (Muse Spark)
+
+`golf serve` has a **Caddie** page (<http://127.0.0.1:8765/caddie>, in the top bar): the Shane's Caddie card on
+the left (headline numbers, score sparkline, yardage book) and a chat on the right. It answers with Meta's
+**Muse Spark** model through the **Meta Model API**, using your own API key. `golf caddie ask "Am I improving?"`
+asks the same way in Terminal.
+
+**The key (once).** It lives in your macOS login Keychain, never in a file. Copy it from the API keys tab at
+<https://dev.meta.ai>, then in Terminal run this exactly as shown. It asks for the key: paste it and press
+Return (nothing shows as you paste). When it asks you to retype it, paste it again and press Return.
+
+```sh
+security add-generic-password -U -s golf-analytics.muse-spark -a muse-spark -w
+golf caddie status      # "Key: set (macOS Keychain)"; it never shows the key
+```
+
+Never put the key after `-w` on the command line: it would land in your shell history and, while the
+command runs, in the process list. `golf caddie key` prints these steps; it never asks for the key itself.
+The same command with `-U` replaces the key; `security delete-generic-password -s golf-analytics.muse-spark
+-a muse-spark` removes it. The app reads the key from the Keychain only when you ask a question (by running
+`/usr/bin/security`), puts it only in the request's `Authorization` header, and never logs it, stores it,
+writes it to `golf.db` or sends it to the page. The Status and Caddie pages and `golf caddie status` only
+check that the Keychain item exists (the same command without `-w`), so they never load the key. If macOS
+asks whether `security` may use the item, click *Always Allow*.
+
+`MUSE_API_KEY` in the environment overrides the Keychain; it is meant for tests, and `golf caddie status`
+and the Status page say when it is in use. It is never read from `.env`: a `MUSE_API_KEY` line there is
+ignored, and the Status page tells you to delete it.
+
+The Keychain keeps the key out of files, iCloud and git, but not away from programs you run: because the
+item trusts `/usr/bin/security`, any process running as you (a script, a coding agent) can read it with
+`security find-generic-password ... -w` without a prompt. If you want Claude Code never to do that, you
+could add deny rules for `Bash(security find-generic-password*)` and `Bash(security dump-keychain*)` to its
+permission settings. That is your call; this project doesn't change them.
+
+**How it answers.** Each question goes to Meta's Responses API with `store: false` (Meta is asked not to keep
+the conversation) and a fresh copy of the instructions: the same caddie rules as the claude.ai page (direct
+answer first, never invent numbers, per-9 comparisons, sample size, no causal claims about lessons,
+beginner-friendly practice), today's date, the headline figures and the rounds table. The model then looks
+things up with read-only tools over `golf.db`, the same functions as `golf mcp`: `list_rounds`, `get_round`,
+`trend`, `timeline`, `lesson_effects`, `club_distances`, `db_schema` and `query_sql` (one SELECT only, stopped
+after 5 seconds). The page shows each lookup as it happens ("looked up 9 rounds"). At most 6 rounds of lookups
+and about 80,000 characters of looked-up data per question; after that the next call is the last one and the
+model is told to answer with what it has (`tool_choice: "none"`). The browser keeps the conversation (the last 16 messages go with each question);
+*Clear chat* forgets it, and nothing is kept on the server.
+
+**What leaves the Mac, and what doesn't.** Sent to Meta: your question and the conversation so far, the
+headline block and rounds table, and whatever the tools return (round and hole scores, club distances,
+lessons and notes with coach names and quoted excerpts). Round ids go as the aliases `r1..rN`, like the
+claude.ai page. Never sent: GPS coordinates, whole note bodies, screenshot extractions, file paths, the raw
+export record, the import log's summary (it holds the export's account fingerprint and file name) and the
+key (the Caddie's SQL reads those columns as NULL). The OpenAI SDK's own environment settings
+(`OPENAI_ORG_ID`, `OPENAI_PROJECT_ID`, `OPENAI_CUSTOM_HEADERS`) are dropped, so no other header goes along;
+`OPENAI_LOG=debug` would print request bodies (your golf data) to the terminal, and the Caddie warns when
+it is set. On Meta's Standard tier, Meta says it
+does not train on your content; how long it keeps requests is up to its terms. The Caddie refuses
+`*-contributor` models, whose prompts Meta may train on.
+
+**Settings** (`[caddie]` in `config.toml`, read on every question):
+
+| Key | Default | Meaning |
+|---|---|---|
+| `model` | `muse-spark-1.1` | A Standard-tier Muse Spark model (`muse-spark-1.3` costs the same) |
+| `base_url` | `https://api.meta.ai/v1` | Must be https, on `api.meta.ai` (the key goes to this host) |
+| `allow_any_base_url` | `false` | `true` lets `base_url` name another https host. Leave it off unless you mean it |
+| `effort` | `low` | Reasoning effort: `minimal`, `low`, `medium`, `high`, `xhigh` |
+| `tools` | `auto` | `native` tool calling; `auto` falls back to a JSON lookup protocol if Meta refuses it; `lookup` starts there |
+| `max_tool_rounds` | `6` | Rounds of lookups per question |
+| `max_output_tokens` | `8000` | Reasoning tokens count against it too |
+| `timeout_seconds` | `120` | Per request. A timed-out request is never re-sent (it may still be running, and billed); a rate limit, a 500/502/503 or a dropped connection is retried once |
+
+**When it can't answer**, the page says why, in plain words: no key yet (with the command above), key
+rejected (copy it again and store it exactly as copied), out of credits (add some at dev.meta.ai), rate
+limited or Meta's API down (try again in a minute), no connection. Meta's own error text is never shown,
+because an auth error can echo part of the key.
+
+**Cost.** Each API call's tokens, model and latency are logged in `llm_calls` (purpose `caddie`; never the
+prompt, the answer or the key). Standard-tier prices are $1.25 per million input tokens ($0.15 cached) and
+$4.25 per million output tokens, reasoning included. A question usually takes 2–3 calls, so a few cents.
+The Status page's Caddie card and `golf caddie status` show questions, calls and spend; the Claude API
+figures leave these calls out.
+
+Compared with the claude.ai page: the Caddie runs on your Meta API credits instead of your Claude plan, and
+reads `golf.db` live, so it always sees the latest import. It needs `golf serve` (or Terminal) on this Mac.
+
 ## Privacy
 
 - Everything personal is under `data/` (gitignored): the export archive, `golf.db`, screenshots, notebook
@@ -428,11 +518,13 @@ API billing. The first question asks you to allow the page to use Claude.
   - an email address or a phone number (with or without separators);
   - the export's personal keys with values (`mobileNumber`, `email`, `birthYear`, `friends`,
     `paymentMethod`);
+  - an API key (Anthropic, or a Meta Model API key like `LLM|…|…`), or `MUSE_API_KEY` given a value;
   - any line of your own note text, including one pasted inside code or a table.
 
   Synthetic test fixtures opt out of the content checks with a `privacy-check: synthetic` line near the top.
 - Screenshots, note text and notebook photos are sent to the Claude API when they are extracted, and
-  nowhere else.
+  nowhere else. The Caddie sends what a question needs to Meta's Model API (see
+  [what leaves the Mac](#the-caddie-in-the-web-app-muse-spark)); its key is in the macOS Keychain, not `.env`.
 
 ## Costs
 
@@ -507,7 +599,7 @@ on it before switching.
 ## Development
 
 ```sh
-.venv/bin/python -m pytest -q          # offline: the API, osascript, launchctl, OpenGolfAPI and GitHub are all faked
+.venv/bin/python -m pytest -q          # offline: the APIs, osascript, launchctl, OpenGolfAPI, GitHub and the Keychain are all faked
 ```
 
 - Tests use synthetic data only (`tests/fixtures`). The watcher tests use temp "Downloads" folders and a
@@ -528,4 +620,5 @@ on it before switching.
   | `golf/privacy.py` | The pre-commit check and the public-site check |
   | `golf/web` | The local web app |
   | `golf/mcp_server.py` | The MCP server |
+  | `golf/caddie.py`, `golf/secrets.py` | The Caddie chat (Muse Spark) and the Keychain key reader |
   | `golf/cli.py` | The commands, plus the pipeline functions the web app shares |

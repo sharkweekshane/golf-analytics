@@ -6,10 +6,20 @@ site), and so are POSTs whose Origin is not this very app (another localhost por
 Extraction runs in a background thread, one job at a time, with its own database connection; the same
 pipeline functions as the CLI (golf.cli) do the work. While `golf serve` runs, a watcher thread also
 looks for new 18Birdies exports in Downloads every minute (golf.watch.scan_once).
+
+The Caddie page (/caddie) chats with Muse Spark through POST /api/caddie (golf.caddie): the browser keeps
+the conversation and sends it as JSON; the answer streams back as NDJSON events. That POST passes the same
+Host/Origin guards, must be application/json (which another site can't send without a CORS preflight this
+app never answers), and the API key is read from the Keychain on the server and never reaches the page.
+Pages only check whether a key is there (security without -w); the key itself is read when a question is
+sent. Another site can't make the browser fetch pages in the background either (an <img> pointing at
+/status): GETs that the browser labels cross-site or same-site are refused unless they are a top-level
+navigation (a link Shane clicks).
 """
 from __future__ import annotations
 
 import io
+import json
 import re
 import shutil
 import threading
@@ -23,14 +33,17 @@ from urllib.parse import quote, urlsplit
 from zoneinfo import ZoneInfo
 
 from fastapi import FastAPI, Form, Request
-from fastapi.responses import HTMLResponse, JSONResponse, PlainTextResponse, RedirectResponse, Response
+from fastapi.responses import (HTMLResponse, JSONResponse, PlainTextResponse, RedirectResponse, Response,
+                               StreamingResponse)
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from starlette.concurrency import run_in_threadpool
 
+from golf import caddie as caddie_mod
 from golf import cli as ops
 from golf import config as config_mod
 from golf import llm
+from golf import secrets as secrets_mod
 from golf import watch as watch_mod
 from golf.config import Config
 from golf.notes import NOTE_TEMPLATE_HELP, NotesError, pending_events, timeline
@@ -40,7 +53,7 @@ ALLOWED_HOSTS = {"127.0.0.1", "localhost", "::1"}
 SERVABLE = {".png", ".jpg", ".jpeg", ".gif", ".webp", ".heic", ".heif"}
 CONVERT_FOR_BROWSER = {".heic", ".heif"}
 FILE_HEADERS = {"Cache-Control": "no-store", "Cross-Origin-Resource-Policy": "same-origin"}
-NAV = [("Dashboard", "/"), ("Inbox", "/inbox"), ("Review", "/review"), ("Timeline", "/timeline"),
+NAV = [("Dashboard", "/"), ("Caddie", "/caddie"), ("Inbox", "/inbox"), ("Review", "/review"), ("Timeline", "/timeline"),
        ("18Birdies", "/status#birdies"), ("Status", "/status")]
 EXPORT_STALE_DAYS = config_mod.EXPORT_STALE_DAYS     # one threshold for the pill, the tile and golf status
 EXPORT_STEPS = [
@@ -52,6 +65,21 @@ EXPORT_STEPS = [
     "dashboard (and the public site, when publishing is on).",
 ]
 ROUND_FIELDS = ("date_iso", "course_text", "tee_text", "course_par")
+CADDIE_MAX_BODY = 400_000               # bytes of JSON the Caddie endpoint accepts (16 turns fit easily)
+CADDIE_SUGGESTIONS = [
+    "Am I improving?",
+    "Which holes cost me the most?",
+    "How far do I hit each club?",
+    "Am I losing more strokes getting to the green or putting?",
+    "How did my rounds change after my last lesson?",
+    "What should I practice next?",
+]
+CADDIE_LESSON_CHIP = "How did my rounds change after my last lesson?"
+CADDIE_NO_LESSON_CHIP = "What was my best round, and why?"      # instead of the lesson chip until one is logged
+
+
+def caddie_suggestions(lessons: int) -> list[str]:
+    return [CADDIE_NO_LESSON_CHIP if s == CADDIE_LESSON_CHIP and not lessons else s for s in CADDIE_SUGGESTIONS]
 EVENT_TYPES = ("lesson", "practice", "on_course", "equipment_change", "fitting", "injury", "fitness", "goal",
                "swing_thought", "milestone", "other")
 
@@ -279,10 +307,13 @@ class Watcher:
 
 def create_app(cfg: Config | None = None, *, background: bool = True, notes_runner: Any = None,
                watch_every: float | None = watch_mod.SERVE_INTERVAL, agents_dir: Path | None = None,
-               publish_runner: Any = None) -> FastAPI:
+               publish_runner: Any = None, caddie_key_reader: Callable[[], str | None] | None = None,
+               caddie_client_factory: Callable[..., Any] | None = None) -> FastAPI:
     """The app for `golf serve`. Tests pass background=False (jobs run inline, no watcher thread), a fake
-    Notes runner, a temporary LaunchAgents folder and a fake git runner."""
+    Notes runner, a temporary LaunchAgents folder, a fake git runner, and for the Caddie a fake key reader
+    and a fake OpenAI client factory (None = the Keychain and the real Meta Model API)."""
     cfg = cfg or ops.get_cfg()
+    key_reader = caddie_key_reader or caddie_mod.default_key_reader
     jobs = Jobs(background=background)
     watcher = Watcher(cfg, jobs, watch_every or watch_mod.SERVE_INTERVAL, publish_runner=publish_runner)
 
@@ -311,14 +342,20 @@ def create_app(cfg: Config | None = None, *, background: bool = True, notes_runn
         host = request.headers.get("host", "")
         if _hostname(host) not in ALLOWED_HOSTS:
             return PlainTextResponse("This app only answers on 127.0.0.1 / localhost.", status_code=403)
-        if request.url.path.startswith("/files/") and request.headers.get("sec-fetch-site") in ("cross-site",
-                                                                                              "same-site"):
+        fetch_site = request.headers.get("sec-fetch-site")
+        foreign = fetch_site in ("cross-site", "same-site")
+        if request.url.path.startswith("/files/") and foreign:
             # <img src="http://127.0.0.1:8765/files/..."> on another site could show a screenshot or probe
             # which files exist; only this app's own pages may load them.
             return PlainTextResponse("Cross-origin request refused.", status_code=403)
+        if foreign and not (request.headers.get("sec-fetch-mode") == "navigate"
+                            and request.headers.get("sec-fetch-dest", "document") == "document"):
+            # Another site (or another localhost port) loading a page in the background, as an <img>,
+            # <script>, fetch or iframe: /status and /caddie look up the Keychain item, and nothing here is
+            # meant to be embedded. A link Shane clicks (a top-level navigation) still works.
+            return PlainTextResponse("Cross-origin request refused.", status_code=403)
         if request.method not in ("GET", "HEAD", "OPTIONS"):
             origin = request.headers.get("origin")
-            fetch_site = request.headers.get("sec-fetch-site")
             if (origin is not None and not same_origin(origin, host)) or fetch_site not in (None, "same-origin",
                                                                                            "none"):
                 return PlainTextResponse("Cross-origin request refused.", status_code=403)
@@ -465,9 +502,56 @@ def create_app(cfg: Config | None = None, *, background: bool = True, notes_runn
             info = ops.status_info(conn, cfg)
             issues = check_courses(conn)
             birdies = watch_mod.status_info(conn, cfg, agents_dir=agents_dir)
+            caddie = caddie_mod.status_info(conn, cfg, key_reader)
         return page(request, "status.html", "/status", info=info, text=ops.format_status(info), issues=issues,
                     birdies=birdies, export_url=ops.EXPORT_URL, export_steps=EXPORT_STEPS,
-                    stale_days=EXPORT_STALE_DAYS)
+                    stale_days=EXPORT_STALE_DAYS, caddie=caddie, caddie_setup=secrets_mod.SETUP_COMMAND)
+
+    # ------------------------------------------------------------ caddie (Muse Spark chat)
+    @app.get("/caddie", response_class=HTMLResponse)
+    def caddie_page(request: Request) -> HTMLResponse:
+        with db() as conn:
+            card = caddie_mod.card_data(conn, cfg)
+        st = caddie_mod.settings(cfg)
+        return page(request, "caddie.html", "/caddie", card=card, caddie_key=caddie_mod.key_state(key_reader),
+                    caddie_model=st.model, caddie_problems=caddie_mod.settings_problems(st),
+                    caddie_setup=secrets_mod.SETUP_COMMAND, suggestions=caddie_suggestions(card.get("lessons", 0)),
+                    max_turns=caddie_mod.MAX_TURNS, max_chars=caddie_mod.MAX_USER_CHARS,
+                    max_answer=caddie_mod.MAX_ASSISTANT_CHARS)
+
+    @app.post("/api/caddie")
+    async def caddie_api(request: Request) -> Response:
+        ctype = request.headers.get("content-type", "").split(";", 1)[0].strip().lower()
+        if ctype != "application/json":
+            return JSONResponse({"error": "Send the conversation as application/json."}, status_code=415)
+        too_long = JSONResponse({"error": "That conversation is too long; clear the chat."}, status_code=413)
+        declared = request.headers.get("content-length")
+        if declared is not None:
+            try:
+                if int(declared) > CADDIE_MAX_BODY:
+                    return too_long             # refused before a byte of the body is read
+            except ValueError:
+                return JSONResponse({"error": "Bad Content-Length."}, status_code=400)
+        chunks, size = [], 0
+        async for chunk in request.stream():    # chunked or lying about its length: stop at the cap
+            size += len(chunk)
+            if size > CADDIE_MAX_BODY:
+                return too_long
+            chunks.append(chunk)
+        body = b"".join(chunks)
+        try:
+            payload = json.loads(body)
+            messages = caddie_mod.validate_messages(payload.get("messages") if isinstance(payload, dict) else None)
+        except (ValueError, UnicodeDecodeError) as e:      # json.JSONDecodeError is a ValueError
+            msg = str(e) if not isinstance(e, (json.JSONDecodeError, UnicodeDecodeError)) else "Not valid JSON."
+            return JSONResponse({"error": msg}, status_code=400)
+
+        def lines() -> Iterator[str]:       # a sync generator: Starlette runs each step in its thread pool
+            for event in caddie_mod.ask(cfg, messages, key_reader=key_reader, client_factory=caddie_client_factory):
+                yield json.dumps(event, ensure_ascii=False) + "\n"
+
+        return StreamingResponse(lines(), media_type="application/x-ndjson",
+                                 headers={"Cache-Control": "no-store", "X-Content-Type-Options": "nosniff"})
 
     @app.post("/watch/scan")
     def watch_scan_post() -> RedirectResponse:

@@ -24,6 +24,7 @@ dependencies = [
   "tomli>=2; python_version < '3.11'",
   "numpy>=1.26",
   "mcp>=2.2",
+  "openai>=2.45,<3",        # the Muse Spark caddie (Meta Model API); 2.x is what wordrobe runs against it
 ]
 
 [project.optional-dependencies]

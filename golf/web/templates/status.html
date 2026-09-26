@@ -80,6 +80,22 @@
   </section>
 </div>
 
+<section class="card" id="caddie">
+  <div class="row" style="justify-content: space-between; align-items: baseline;">
+    <h2 style="margin:0">Caddie (Muse Spark)</h2>
+    <a class="btn" href="/caddie">Open the Caddie</a>
+  </div>
+  <dl class="kv" style="margin-top:8px">
+    <dt>API key</dt><dd>{% if caddie.key_set %}<span class="badge ok">set</span>{% elif caddie.key_error %}<span class="badge E">can't read it</span> <span class="small">{{ caddie.key_error }}</span>{% else %}<span class="badge E">not set</span> <span class="small">in Terminal: <code>{{ caddie_setup }}</code> (paste the key when asked, then again when it asks you to retype it; <code>golf caddie key</code> explains)</span>{% endif %}
+      {% if caddie.key_source and caddie.key_source.startswith("environment") %}<div class="small status-error">From the {{ caddie.key_source }}, which overrides the Keychain. Unset it to use the Keychain entry.</div>
+      {% else %}<div class="small muted">Kept in the macOS Keychain. Pages only check that it is there; the key itself is read when you ask a question.</div>{% endif %}
+      {% if caddie.key_in_dotenv_ignored %}<div class="small status-error">A MUSE_API_KEY line in .env is ignored: the key belongs in the Keychain. Delete that line from .env (and rotate the key at dev.meta.ai if it was a real one).</div>{% endif %}</dd>
+    <dt>Model</dt><dd><code>{{ caddie.model }}</code> <span class="small muted">via {{ caddie.base_url }}{% if caddie.mode_in_use %}, {{ caddie.mode_in_use }} tool calling{% endif %}</span></dd>
+    <dt>Calls so far</dt><dd>{{ caddie.usage.questions|plural("question") }}, {{ caddie.usage.calls|plural("API call") }}{% if caddie.usage.calls %} <span class="small muted">(${{ "%.2f"|format(caddie.usage.spend_usd) }}{% if caddie.usage.unpriced %}; {{ caddie.usage.unpriced }} on a model with no known price{% endif %})</span>{% endif %}</dd>
+    {% for p in caddie.problems %}<dt>Config</dt><dd class="status-error small">{{ p }}</dd>{% endfor %}
+  </dl>
+</section>
+
 <section class="card">
   <h2>Course data check</h2>
   {% if issues %}

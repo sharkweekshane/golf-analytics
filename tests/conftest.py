@@ -1,10 +1,34 @@
 from __future__ import annotations
 
+import os
+
 import pytest
 
 import golf.config as config_mod
 import golf.llm as llm
+from golf import caddie, secrets
 from golf.db import memory_db
+
+
+@pytest.fixture(autouse=True)
+def _no_keychain_no_meta_api(monkeypatch):
+    """Every test, in every file: the real Keychain is never read (secrets.RUNNER fails the test), no client
+    for Meta's API is built (caddie.CLIENT_FACTORY fails it), the Caddie's retry wait is instant, and
+    MUSE_API_KEY / OPENAI_* from the shell can't leak in. A test that needs a key injects a fake one."""
+    def no_keychain(args):
+        raise AssertionError(f"unexpected Keychain call ({' '.join(list(args)[:2])})")
+
+    def no_meta_api(**kw):
+        raise AssertionError("unexpected Meta Model API client")
+
+    monkeypatch.setattr(secrets, "RUNNER", no_keychain)
+    monkeypatch.setattr(caddie, "CLIENT_FACTORY", no_meta_api)
+    monkeypatch.setattr(caddie, "SLEEP", lambda seconds: None)
+    monkeypatch.setattr(caddie, "_LEVELS", {})
+    monkeypatch.setattr(config_mod, "DOTENV_IGNORED", set())
+    for name in list(os.environ):
+        if name == "MUSE_API_KEY" or name.startswith("OPENAI_"):
+            monkeypatch.delenv(name)
 
 
 @pytest.fixture

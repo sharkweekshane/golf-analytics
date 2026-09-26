@@ -609,6 +609,9 @@ def status_info(conn: sqlite3.Connection, cfg: Config) -> dict[str, Any]:
                       " ORDER BY as_of DESC, round_id DESC LIMIT 1").fetchone()
     last_export = last_export_info(conn, cfg)
     spend = llm.spend_summary(conn)
+    from golf.caddie import usage_summary as caddie_usage
+
+    caddie = caddie_usage(conn)          # Muse Spark calls share llm_calls; the Claude figures leave them out
     pub = publish_mod.settings(cfg)
     scan = watch_mod._meta_json(conn, watch_mod.LAST_SCAN_KEY, None)
     entities = Path(cfg.root) / "entities.yaml"
@@ -630,8 +633,11 @@ def status_info(conn: sqlite3.Connection, cfg: Config) -> dict[str, Any]:
         "last_export": last_export,
         # calls = every call sent (retries and --force re-runs are billed too); unpriced = calls on a model
         # with no known price, which the spend total can't include.
-        "api": {"key_set": api_key_set(cfg), "calls": spend["billed_calls"], "unpriced": spend["unpriced"],
-                "spend_usd": round(llm.total_spend(conn), 4), "model": cfg.model},
+        "api": {"key_set": api_key_set(cfg), "calls": spend["billed_calls"] - caddie["calls"],
+                "unpriced": spend["unpriced"] - caddie["unpriced"],
+                "spend_usd": round(one("SELECT COALESCE(SUM(COALESCE(cost_total_usd, cost_usd, 0)), 0) FROM llm_calls"
+                                       " WHERE purpose != 'caddie'"), 4), "model": cfg.model},
+        "caddie": caddie,
         "demo": has_demo(conn),
         "files": {"courses_yaml": (Path(cfg.root) / "courses.yaml").exists(), "entities_yaml": entities.exists(),
                   "entities_is_example": entities.exists() and example.exists()
@@ -716,6 +722,10 @@ def format_status(s: dict[str, Any]) -> str:
         f"{_n(a['calls'], 'call')} billed, ${a['spend_usd']:.2f} spent so far"
         + (f" ({a['unpriced']} on a model with no known price, not in that total)." if a.get("unpriced") else "."),
     ]
+    cad = s.get("caddie") or {}
+    if cad.get("calls"):
+        lines.append(f"Caddie (Muse Spark): {_n(cad['questions'], 'question')}, {_n(cad['calls'], 'API call')}, "
+                     f"${cad['spend_usd']:.2f} so far (`golf caddie status`).")
     w, pub = s["watch"], s["publish"]
     scan = w["last_scan"]
     lines.append("Auto-import: " + ("LaunchAgent installed" if w["agent_installed"] else
@@ -749,6 +759,8 @@ demo_app = typer.Typer(help="Synthetic demo data for trying the dashboard.", no_
 round_app = typer.Typer(help="Your corrections to one round, kept in round_overrides (imports never overwrite "
                              "them).", no_args_is_help=True)
 analyze_app = typer.Typer(help="Descriptive analyses.", no_args_is_help=True)
+caddie_app = typer.Typer(help="The Caddie: ask Muse Spark (Meta Model API, your key in the macOS Keychain) about "
+                              "your golf.", no_args_is_help=True)
 watch_app = typer.Typer(help="Import new 18Birdies exports from Downloads automatically.",
                         invoke_without_command=True)
 app.add_typer(courses_app, name="courses")
@@ -758,6 +770,7 @@ app.add_typer(review_app, name="review")
 app.add_typer(demo_app, name="demo")
 app.add_typer(round_app, name="round")
 app.add_typer(analyze_app, name="analyze")
+app.add_typer(caddie_app, name="caddie")
 
 
 def _echo(text: str = "") -> None:
@@ -1438,6 +1451,51 @@ def serve(port: Annotated[int, typer.Option("--port")] = 8765,
 
         webbrowser.open(url)
     uvicorn.run(create_app(cfg), host="127.0.0.1", port=port, log_level="warning")
+
+
+# ---------------------------------------------------------------- caddie (Muse Spark)
+@caddie_app.command("status")
+def caddie_status() -> None:
+    """Whether the Caddie's API key is set (never shown), the model and endpoint, and calls so far."""
+    from golf import caddie
+
+    cfg = get_cfg()
+    with open_db(cfg) as conn:
+        _echo(caddie.format_status(caddie.status_info(conn, cfg)))
+
+
+@caddie_app.command("key")
+def caddie_key() -> None:
+    """How to put the Muse Spark API key in the macOS Keychain (this command never asks for the key)."""
+    from golf.secrets import SETUP_HELP
+
+    _echo(SETUP_HELP)
+
+
+@caddie_app.command("ask")
+def caddie_ask(question: Annotated[str, typer.Argument(help="Your question, in quotes.")]) -> None:
+    """Ask the Caddie one question in Terminal (same tools and rules as the web page's chat)."""
+    from golf import caddie
+
+    cfg = get_cfg()
+    answer = ""
+    for ev in caddie.ask(cfg, [{"role": "user", "content": question}]):
+        if ev["type"] == "activity":
+            typer.echo(f"  > {ev['text']}", err=True)
+        elif ev["type"] == "delta":
+            answer += ev["text"]
+        elif ev["type"] == "error":
+            if ev["code"] == "no_key":
+                from golf.secrets import SETUP_HELP
+
+                _fail(SETUP_HELP)
+            _fail(ev["message"], 1 if ev["code"] in caddie.TRANSIENT_CODES else 2)
+        elif ev["type"] == "done":
+            _echo(answer)
+            mode = {"native": "native tool calling", "native-plain": "tool calling without reasoning replay",
+                    "lookup": "JSON lookup fallback"}.get(ev["mode"], ev["mode"])
+            tail = f"({ev['model']}, {mode}, {_n(ev['lookups'], 'lookup')}, {_n(ev['api_calls'], 'API call')})"
+            typer.echo(("The answer was cut short. " if ev.get("truncated") else "") + tail, err=True)
 
 
 @app.command()

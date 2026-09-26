@@ -13,6 +13,7 @@ import math
 import re
 import sqlite3
 import sys
+import time
 from contextlib import contextmanager
 from pathlib import Path
 from typing import Any, Iterator
@@ -21,6 +22,7 @@ from golf.config import Config
 from golf.db import connect, loads
 
 MAX_ROWS = 500
+QUERY_SECONDS = 5.0      # query_sql interrupts a statement still running after this (an unbounded recursive CTE)
 HIDDEN_COLUMNS = {
     ("source_docs", "text"),              # whole note bodies (may name friends); excerpts come via timeline
     ("extractions", "result_json"),       # screenshots can list playing partners (other_players)
@@ -56,9 +58,11 @@ def open_readonly(db_path: Path | str) -> sqlite3.Connection:
 
 
 def _clean(obj: Any) -> Any:
-    """JSON-safe: NaN/inf become None, tuples become lists, rows become dicts."""
+    """JSON-safe: NaN/inf become None, tuples become lists, rows become dicts, blobs a short placeholder."""
     if isinstance(obj, float):
         return obj if math.isfinite(obj) else None
+    if isinstance(obj, (bytes, bytearray, memoryview)):
+        return f"<blob {len(obj)} bytes>"
     if isinstance(obj, dict):
         return {str(k): _clean(v) for k, v in obj.items()}
     if isinstance(obj, (list, tuple)):
@@ -227,21 +231,36 @@ def _allow_all(*_args: Any) -> int:
     return sqlite3.SQLITE_OK
 
 
-def query_sql(conn: sqlite3.Connection, sql: str, limit: int = 200) -> dict[str, Any]:
-    """Run one read-only SELECT. Rows beyond `limit` (max 500) are cut off and `truncated` is set."""
+def query_sql(conn: sqlite3.Connection, sql: str, limit: int = 200, *, authorizer: Any = None,
+              seconds: float = QUERY_SECONDS) -> dict[str, Any]:
+    """Run one read-only SELECT. Rows beyond `limit` (max 500) are cut off and `truncated` is set. A
+    statement still running after `seconds` is interrupted (QueryRejected), so a runaway query can't hang
+    the tool or hold the connection. `authorizer` replaces _authorizer (golf.caddie hides more columns)."""
     statement = check_select(sql)
     limit = max(1, min(int(limit), MAX_ROWS))
-    conn.set_authorizer(_authorizer)
+    deadline = time.monotonic() + seconds
+    failure: QueryRejected | None = None
+    rows: list[Any] = []
+    columns: list[str] = []
+    conn.set_authorizer(authorizer or _authorizer)
+    conn.set_progress_handler(lambda: 1 if time.monotonic() > deadline else 0, 10_000)
     try:
         cur = conn.execute(statement)
         rows = cur.fetchmany(limit + 1)
         columns = [d[0] for d in cur.description or []]
     except sqlite3.DatabaseError as e:
-        raise QueryRejected(f"SQLite: {e}") from None
+        if time.monotonic() > deadline:
+            failure = QueryRejected(f"The query ran longer than {seconds:g} seconds and was stopped. Simplify it "
+                                    "(for example, give a recursive CTE a small LIMIT).")
+        else:
+            failure = QueryRejected(f"SQLite: {e}")
     finally:
+        conn.set_progress_handler(None, 0)
         # Python 3.10 (this venv) can't clear an authorizer with None: the connection would then refuse
         # every later statement ("not authorized"). An allow-all callback restores normal use there.
         conn.set_authorizer(None if sys.version_info >= (3, 11) else _allow_all)
+    if failure is not None:
+        raise failure
     truncated = len(rows) > limit
     return _clean({"columns": columns, "rows": [list(r) for r in rows[:limit]], "row_count": min(len(rows), limit),
                    "truncated": truncated})

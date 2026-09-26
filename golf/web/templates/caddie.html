@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+{% block title %}Caddie{% endblock %}
+{% block head %}<link rel="stylesheet" href="/static/caddie.css">{% endblock %}
+{% block wrapclass %} caddie-wrap{% endblock %}
+{% block keybanner %}
+{% if caddie_problems %}
+  <div class="banner" role="alert"><span aria-hidden="true">&#9650;</span>
+    <div><strong>The Caddie's settings need a fix</strong> (<code>[caddie]</code> in config.toml):
+      {% for p in caddie_problems %}<div class="small">{{ p }}</div>{% endfor %}</div></div>
+{% elif caddie_key.error %}
+  <div class="banner" role="alert"><span aria-hidden="true">&#9650;</span>
+    <div><strong>The Keychain didn't hand over the Caddie's key.</strong> {{ caddie_key.error }}</div></div>
+{% elif not caddie_key.set %}
+  <div class="banner" role="note" id="cd-keybanner"><span aria-hidden="true">&#9650;</span>
+    <div><strong>No Muse Spark API key yet.</strong> The Caddie answers with your Meta Model API key, kept in the
+      macOS Keychain (never in a file). Copy the key from the API keys tab at dev.meta.ai, then run this in
+      Terminal exactly as shown. Paste the key when it asks, press Return, then paste it again when it asks you
+      to retype it:
+      <pre class="cd-cmd">{{ caddie_setup }}</pre>
+      Never type the key after <code>-w</code> on the command line (it would land in your shell history). Then ask
+      your question. <code>golf caddie status</code> checks it (it never shows the key).</div></div>
+{% endif %}
+{% endblock %}
+{% block content %}
+<div class="caddie" id="caddie" data-max-turns="{{ max_turns }}" data-max-chars="{{ max_chars }}" data-max-answer="{{ max_answer }}">
+  <aside class="cd-card" aria-label="Scorecard summary">
+    <div class="cd-brand"><h1>Caddie</h1><div class="cd-asof" id="cd-asof">{% if card.data_through %}through {{ card.data_through }}{% else %}no rounds yet{% endif %}</div></div>
+    <section>
+      <p class="cd-eyebrow">The card</p>
+      <div class="cd-rows" id="cd-kpis"></div>
+    </section>
+    <section class="cd-hide-sm">
+      <p class="cd-eyebrow">Strokes over par, per 9 holes</p>
+      <svg class="cd-spark" id="cd-spark" viewBox="0 0 300 120" role="img" aria-label="Score per 9 holes by round"></svg>
+      <div class="cd-legend"><span><i></i>round</span><span><i class="line"></i>5-round average</span><span>higher = better</span></div>
+    </section>
+    <section class="cd-hide-sm">
+      <p class="cd-eyebrow">Yardage book</p>
+      <table class="cd-yardage" id="cd-yardage"><thead><tr><th>Club</th><th>Median</th><th>Shots</th></tr></thead><tbody></tbody></table>
+      <p class="cd-fine">GPS distance to the next shot, roll included. <span class="cd-live">Green</span> = median of live-tracked shots; the rest were tapped on the map after the round.</p>
+    </section>
+    <p class="cd-fine cd-model">Muse Spark &middot; <code>{{ caddie_model }}</code> &middot; key {{ "set" if caddie_key.set else "not set" }}{% if caddie_key.source and caddie_key.source.startswith("environment") %} (from {{ caddie_key.source }}){% endif %}</p>
+  </aside>
+
+  <section class="cd-chat" aria-label="Chat">
+    <div class="cd-thread" id="cd-thread" aria-live="polite">
+      <div class="cd-intro" id="cd-intro">
+        <h2>Ask about your golf</h2>
+        <p>Muse Spark reads your rounds, hole-by-hole scores, club distances and lesson notes from golf.db
+          (read-only) and answers with your Meta API key.</p>
+        <div class="cd-chips" id="cd-chips">
+          {% for s in suggestions %}<button class="cd-chip" type="button">{{ s }}</button>{% endfor %}
+        </div>
+      </div>
+    </div>
+    <div class="cd-composer">
+      <form class="cd-box" id="cd-form" autocomplete="off">
+        <textarea id="cd-q" rows="1" maxlength="{{ max_chars }}" placeholder="Ask about your golf&hellip;" aria-label="Your question"></textarea>
+        <button class="cd-btn" id="cd-send" type="submit" disabled>Ask</button>
+      </form>
+      <div class="cd-opts">
+        <span class="cd-long">Your question and the golf data it looks up are sent to Meta's API (with <code>store: false</code>). GPS positions, note bodies and file paths stay on this Mac.</span>
+        <span class="cd-short">Sent to Meta's API; GPS, note bodies and file paths stay here.</span>
+        <button class="cd-link" type="button" id="cd-clear">Clear chat</button>
+      </div>
+    </div>
+  </section>
+</div>
+<script type="application/json" id="cd-card-data">{{ card|tojson }}</script>
+<script src="/static/caddie.js"></script>
+{% endblock %}
