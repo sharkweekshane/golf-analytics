@@ -375,14 +375,17 @@ Claude Desktop (`~/Library/Application Support/Claude/claude_desktop_config.json
     "golf": {
       "command": "/Users/shane/.venvs/golf-analytics/bin/golf",
       "args": ["mcp"],
-      "env": {"GOLF_ROOT": "/Users/shane/Desktop/golf-analytics", "PYTHONPATH": "/Users/shane/Desktop/golf-analytics"}
+      "env": {"GOLF_ROOT": "/Users/shane/Desktop/golf-analytics"}
     }
   }
 }
 ```
 
-Then ask things like *"How did my putts change after the June lesson?"* Keep in mind that whatever the
-tools return goes into that Claude conversation.
+Quit Claude completely (Cmd-Q) and reopen it; the `golf` tools then show up in a new chat's tools menu.
+This runs on your Claude subscription (no API key or API billing) and reads `golf.db` live, so answers
+always reflect the latest import. Then ask things like *"How did my putts change after the June lesson?"*
+or *"What's my median 9-iron?"* Keep in mind that whatever the tools return goes into that Claude
+conversation.
 
 ## Privacy
 
