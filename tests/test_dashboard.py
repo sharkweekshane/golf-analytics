@@ -365,3 +365,17 @@ def test_public_page_speaks_about_the_player_and_hides_maintenance_details(conn,
     local = dashboard_data(conn, cfg, today=TODAY, n_boot=50)
     assert local["identity"]["sentence"].startswith("Per 9 holes you average")
     assert any("screenshots (Inbox)" in i["text"] for i in local["quality"]["items"])
+
+
+def test_ask_the_caddie_link_only_when_the_relay_is_configured(conn, cfg, tmp_path):
+    seed_demo(conn, end=END)
+    tpl = TEMPLATE_PATH.read_text()
+    assert re.search(r'<a class="caddie-link" id="caddie-link" href="caddie/" hidden>', tpl)   # hidden by default
+    plain = build(conn, cfg, tmp_path / "plain.html", public=True, today=TODAY).read_text()
+    assert "caddie_url" not in _embedded(plain)
+    linked = build(conn, cfg, tmp_path / "linked.html", public=True, today=TODAY, caddie_link="caddie/").read_text()
+    _assert_self_contained(linked)                          # a relative link: still no network, no URL
+    assert _embedded(linked)["caddie_url"] == "caddie/"
+    for bad in ("https://evil.example/", "//evil.example/", "../../x/", "/caddie/"):
+        with pytest.raises(ValueError):
+            build(conn, cfg, tmp_path / "bad.html", public=True, today=TODAY, caddie_link=bad)

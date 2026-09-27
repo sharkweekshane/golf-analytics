@@ -1407,16 +1407,31 @@ def review_events() -> None:
 # ---------------------------------------------------------------- outputs
 @app.command()
 def build(out: Annotated[Optional[Path], typer.Option(
-              "--out", help="Default: data/site/index.html (data/site/public/index.html with --public)")] = None,
+              "--out", help="Default: data/site/index.html; with --public the whole public site in data/site/public/ "
+                            "(dashboard, caddie/ page, golf-data.json)")] = None,
           public: Annotated[bool, typer.Option(
               "--public", help="The shareable version: no file paths, screenshots, GPS, API cost or machine "
                                "details (what `golf publish` pushes; it also runs the privacy check).")] = False,
           ) -> None:
     """Write the self-contained dashboard HTML (no network requests; open it in a browser)."""
+    from golf import publish as publish_mod
     from golf.dashboard import build as build_dashboard
 
     cfg = get_cfg()
     with open_db(cfg) as conn:
+        if public and out is None:
+            # The whole public site, as golf publish builds it: the dashboard, the Caddie page and its data.
+            site = cfg.site_dir / "public"
+            try:
+                path = publish_mod.build_site(conn, cfg, site, publish_mod.settings(cfg).site_url)
+            except publish_mod.PublishError as e:
+                _fail(str(e), 1)
+            caddie = site / "caddie" / "index.html"
+            _echo(f"Public dashboard written to {path}\nThe Caddie page: {caddie}"
+                  + ("" if publish_mod.settings(cfg).caddie_worker_url else
+                     " (not connected: [publish] caddie_worker_url is empty)")
+                  + f"\nOpen it with: open '{path}' (golf publish --dry-run also runs the privacy check)")
+            return
         path = build_dashboard(conn, cfg, out, public=public)
     _echo(f"{'Public dashboard' if public else 'Dashboard'} written to {path}\nOpen it with: open '{path}'")
 

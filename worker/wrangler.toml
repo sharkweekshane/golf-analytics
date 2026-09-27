@@ -1,0 +1,40 @@
+# The Caddie relay for the GitHub Pages caddie page (see README.md, "Caddie on GitHub Pages").
+# Secrets are NOT here: `npx wrangler secret put MUSE_API_KEY` and `npx wrangler secret put CADDIE_PASSCODE`.
+name = "golf-caddie"
+main = "src/index.js"
+compatibility_date = "2026-09-01"
+workers_dev = true        # served at https://golf-caddie.<your-subdomain>.workers.dev
+preview_urls = false      # no extra per-version URLs
+send_metrics = false      # no wrangler usage telemetry
+
+[vars]
+# Exact origin of the caddie page (scheme + host, no path). Requests from anywhere else get 403.
+ALLOWED_ORIGIN = "https://sharkweekshane.github.io"
+# Standard tier only: the Worker refuses *-contributor models (Meta may train on those prompts).
+MODEL = "muse-spark-1.3"
+EFFORT = "medium"
+MAX_OUTPUT_TOKENS = "8000"
+META_BASE = "https://api.meta.ai/v1"
+
+# No request logs are kept (the passcode travels in a request header).
+[observability]
+enabled = false
+
+# Workers Rate Limiting (GA, wrangler >= 4.36). Counters are per Cloudflare location and approximate.
+# 20 calls to Meta a minute for the passcode (a question takes 1 to 7 calls)...
+[[ratelimits]]
+name = "CADDIE_LIMITER"
+namespace_id = "4801"
+
+  [ratelimits.simple]
+  limit = 20
+  period = 60
+
+# ...and 30 requests a minute per IP address, which slows down anyone guessing the passcode.
+[[ratelimits]]
+name = "CADDIE_IP_LIMITER"
+namespace_id = "4802"
+
+  [ratelimits.simple]
+  limit = 30
+  period = 60

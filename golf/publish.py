@@ -2,8 +2,11 @@
 
 The public page is the same dashboard built with public=True: rounds, scores, stats, the unofficial
 handicap and the lesson timeline (Shane: "let them see everything"), but no file paths, screenshots or
-notebook photos, GPS coordinates, API cost, or anything naming this machine. Every build is scanned by
-golf.privacy.site_findings before it can leave the Mac, and any finding aborts the publish.
+notebook photos, GPS coordinates, API cost, or anything naming this machine. Beside it go the Caddie page
+(caddie/index.html) and its data (golf-data.json; golf.dashboard.caddie_page): the chat talks to Muse Spark
+through the Cloudflare Worker named by [publish] caddie_worker_url, which holds the Meta key. Every file of
+every build is scanned by golf.privacy.site_findings before it can leave the Mac, and any finding aborts
+the publish.
 
 How it is pushed: the site is built in a temporary folder that becomes a one-commit git repository,
 force-pushed to the `gh-pages` branch of the project's GitHub remote. That branch holds ONLY the built
@@ -13,8 +16,9 @@ unless [publish] allow_any_remote = true. Nothing personal from data/ is ever co
 the built folder is in that temporary repository. git runs without the caller's repository-locating
 variables (GIT_DIR, GIT_WORK_TREE, GIT_INDEX_FILE, ... as set inside a git hook) or identity overrides,
 and every gh-pages commit is authored by a fixed no-reply identity, never the project's git email. A
-build that is byte-identical to the last published one (apart from its build timestamp) is not pushed
-again.
+build that is byte-identical to the last published one (apart from its build timestamps) is not pushed
+again: the fingerprint covers every file of the site, so a change to the Caddie page or its data alone is
+pushed too.
 """
 from __future__ import annotations
 
@@ -78,6 +82,7 @@ class PublishSettings:
     branch: str = PAGES_BRANCH
     site_url: str = DEFAULT_SITE_URL
     allow_any_remote: bool = False    # tests (a local bare repo) or a deliberate non-GitHub remote
+    caddie_worker_url: str = ""       # the Caddie relay (worker/); empty = the Caddie page says "not connected"
 
 
 def settings(cfg: Config) -> PublishSettings:
@@ -91,6 +96,7 @@ def settings(cfg: Config) -> PublishSettings:
         branch=str(raw.get("branch", PAGES_BRANCH)),
         site_url=str(raw.get("site_url", DEFAULT_SITE_URL)),
         allow_any_remote=bool(raw.get("allow_any_remote", False)),
+        caddie_worker_url=str(raw.get("caddie_worker_url") or "").strip().rstrip("/"),
     )
 
 
@@ -185,14 +191,33 @@ def not_found_page(site_url: str) -> str:
 
 
 def build_site(conn, cfg: Config, site: Path, site_url: str = DEFAULT_SITE_URL) -> Path:
-    """index.html (public dashboard) + .nojekyll + 404.html into `site`. Returns index.html."""
-    from golf.dashboard import build as build_dashboard
+    """The public site into `site`: index.html (public dashboard), caddie/index.html + golf-data.json (the
+    Caddie), .nojekyll and 404.html. Returns index.html.
 
+    The dashboard links to the Caddie only when [publish] caddie_worker_url is set: without its relay the
+    Caddie can't answer, and a public link to a page that only says so would be a dead end for visitors.
+    The page itself is always built, so its address works (and says "not connected yet") before the relay
+    exists."""
+    from golf.dashboard import build as build_dashboard
+    from golf.dashboard import caddie_page
+
+    worker = settings(cfg).caddie_worker_url
+    problem = caddie_page.worker_url_problem(worker)
+    if problem:
+        raise PublishError(problem)
     site.mkdir(parents=True, exist_ok=True)
-    index = build_dashboard(conn, cfg, site / "index.html", public=True)
+    index = build_dashboard(conn, cfg, site / "index.html", public=True,
+                            caddie_link=caddie_page.PAGE_HREF if worker else None)
+    caddie_page.write_caddie(conn, cfg, site, worker)
     (site / ".nojekyll").write_text("")
     (site / "404.html").write_text(not_found_page(site_url), encoding="utf-8")
     return Path(index)
+
+
+def site_files(site: Path) -> list[str]:
+    """Every file of a built site, as sorted relative paths (caddie/index.html, golf-data.json, ...)."""
+    return sorted(p.relative_to(site).as_posix() for p in site.rglob("*")
+                  if p.is_file() and ".git" not in p.relative_to(site).parts)
 
 
 def check_site(cfg: Config, site: Path, *, extra_markers: list[str] | None = None) -> list[privacy.Finding]:
@@ -207,6 +232,14 @@ def content_sha(html_bytes: bytes) -> str:
     """sha256 of the page apart from its build timestamp, so an unchanged dashboard is not re-pushed
     just because it was rebuilt a minute later."""
     return hashlib.sha256(_GENERATED_AT.sub(b'"generated_at":""', html_bytes)).hexdigest()
+
+
+def site_sha(site: Path) -> str:
+    """content_sha over every file of the site (names and contents, build timestamps blanked)."""
+    h = hashlib.sha256()
+    for rel in site_files(site):
+        h.update(rel.encode("utf-8") + b"\0" + content_sha((site / rel).read_bytes()).encode("ascii") + b"\n")
+    return h.hexdigest()
 
 
 def _meta(conn, key: str) -> str | None:
@@ -241,13 +274,14 @@ def publish(conn, cfg: Config, *, dry_run: bool = False, runner: Runner | None =
     tmp = Path(tempfile.mkdtemp(prefix="golf-publish-"))
     try:
         site = tmp / "site"
-        index = build_site(conn, cfg, site, s.site_url)
+        build_site(conn, cfg, site, s.site_url)
         findings = check_site(cfg, site, extra_markers=[str(tmp), str(tmp.resolve())])
         if findings:
             raise PublishPrivacyError(findings)
-        sha = content_sha(index.read_bytes())
+        sha = site_sha(site)
         out: dict[str, Any] = {"action": None, "site_url": s.site_url, "sha256": sha, "commit": None,
-                               "preview": None, "files": sorted(p.name for p in site.iterdir())}
+                               "preview": None, "files": site_files(site),
+                               "caddie": "connected" if s.caddie_worker_url else "not_connected"}
         if dry_run:
             preview = cfg.site_dir / "public"
             if preview.exists():
@@ -285,11 +319,18 @@ def publish(conn, cfg: Config, *, dry_run: bool = False, runner: Runner | None =
         shutil.rmtree(tmp, ignore_errors=True)
 
 
+CADDIE_NOT_CONNECTED = ("The Caddie page (caddie/) is built but not connected: [publish] caddie_worker_url is "
+                        "empty, so the dashboard doesn't link to it yet. README.md, \"Caddie on GitHub Pages\", "
+                        "has the setup.")
+
+
 def format_publish(out: dict[str, Any]) -> str:
+    caddie = {"connected": "\nThe dashboard links to the Caddie (caddie/).",
+              "not_connected": "\n" + CADDIE_NOT_CONNECTED}.get(out.get("caddie") or "", "")
     if out["action"] == "dry_run":
-        return (f"Dry run: the public dashboard passed the privacy check ({', '.join(out['files'])}). Nothing was "
-                f"pushed. Look at it: open '{out['preview']}'")
+        return (f"Dry run: the public site passed the privacy check ({', '.join(out['files'])}). Nothing was "
+                f"pushed. Look at it: open '{out['preview']}'" + caddie)
     if out["action"] == "unchanged":
-        return f"The public dashboard is unchanged since the last publish; nothing pushed ({out['site_url']})."
+        return f"The public site is unchanged since the last publish; nothing pushed ({out['site_url']})."
     return (f"Published to {out['site_url']} (gh-pages commit {out['commit']}). GitHub Pages updates within a "
-            "minute or two.")
+            "minute or two." + caddie)

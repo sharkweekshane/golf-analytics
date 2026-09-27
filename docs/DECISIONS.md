@@ -35,5 +35,11 @@ adapted to Shane's answers. **Where the two disagree, this file wins.**
      - the Meta Model API (api.meta.ai), when Shane asks the Caddie a question (added 2026-09-26). Standard-tier
        Muse Spark models only (Meta does not train on them); requests use `store: false`; the key is read from
        the macOS Keychain per question and never written to disk, logs or golf.db
+     - the Caddie on the public site (added 2026-09-26): the browser sends questions to Shane's own Cloudflare
+       Worker (`worker/`), which holds the Meta key as a Cloudflare secret, requires a passcode, and forwards
+       to the Meta Model API with the same Standard-tier / `store: false` rules. The key is never in the page,
+       the site or the repo
+   - The public site's `golf-data.json` (read by the Caddie page) is public like the dashboard. It leaves out
+     the notes' verbatim excerpts: note summaries are public, Shane's own words are not.
    - The dashboard HTML is self-contained, with no CDN.
 7. **The screenshot prompt is provisional** until Shane's real screenshots arrive. The screen guide lives in its own prompt section so it can be rewritten from real captures. `prompt_version` is bumped on every change.

@@ -128,10 +128,17 @@ def test_dry_run_builds_and_checks_without_git(cfg, demo):
     out = publish.publish(demo, cfg, dry_run=True, runner=rec)
     assert out["action"] == "dry_run" and rec.calls == []
     preview = cfg.site_dir / "public"
-    assert sorted(p.name for p in preview.iterdir()) == [".nojekyll", "404.html", "index.html"]
+    assert sorted(p.name for p in preview.iterdir()) == [".nojekyll", "404.html", "caddie", "golf-data.json",
+                                                          "index.html"]
+    assert out["files"] == [".nojekyll", "404.html", "caddie/index.html", "golf-data.json", "index.html"]
     assert "/golf-analytics/" in (preview / "404.html").read_text()
     assert privacy.site_findings(preview, db_path=cfg.db_path, root=cfg.root, data_dir=cfg.data_dir) == []
-    assert "passed the privacy check" in run("publish", "--dry-run")
+    # No relay configured: the Caddie page is there (and says so), the dashboard doesn't link to it.
+    assert out["caddie"] == "not_connected"
+    assert '"caddie_url"' not in (preview / "index.html").read_text()
+    assert '"worker_url":""' in (preview / "caddie" / "index.html").read_text()
+    text = run("publish", "--dry-run")
+    assert "passed the privacy check" in text and "caddie/index.html" in text and "not connected" in text
     assert demo.execute("SELECT value FROM meta WHERE key = 'publish_last_sha'").fetchone() is None
 
 
@@ -143,7 +150,7 @@ def test_publish_pushes_only_the_built_site_to_gh_pages(cfg, demo, bare):
     out = publish.publish(demo, cfg)
     assert out["action"] == "pushed" and len(out["commit"]) == 12
     files = git("--git-dir", str(bare), "ls-tree", "-r", "--name-only", "gh-pages").splitlines()
-    assert files == [".nojekyll", "404.html", "index.html"]
+    assert files == [".nojekyll", "404.html", "caddie/index.html", "golf-data.json", "index.html"]
     assert git("--git-dir", str(bare), "rev-parse", "main") == main_before            # main untouched
     assert git("--git-dir", str(bare), "log", "-1", "--format=%an", "gh-pages") == publish.FALLBACK_NAME
     html = git("--git-dir", str(bare), "show", "gh-pages:index.html")
@@ -153,9 +160,63 @@ def test_publish_pushes_only_the_built_site_to_gh_pages(cfg, demo, bare):
     again = publish.publish(demo, cfg)
     assert again["action"] == "unchanged" and git("--git-dir", str(bare), "rev-parse", "gh-pages") == pages_rev
     assert "unchanged since the last publish" in publish.format_publish(again)
+    assert "not connected" in publish.format_publish(out)
     assert publish.publish(demo, cfg, force=True)["action"] == "pushed"
     assert git("--git-dir", str(bare), "rev-list", "--count", "gh-pages") == "1"      # one commit, replaced
     assert publish.last_publish(demo)["commit"]
+
+
+def test_the_caddie_goes_out_with_its_relay_address_and_a_dashboard_link(cfg, demo, bare):
+    """With [publish] caddie_worker_url set, the dashboard links to caddie/, the page talks to that Worker
+    only (config + CSP), and changing just the Worker address still republishes."""
+    worker = "https://golf-caddie.shane-example.workers.dev"
+    configure(cfg, enabled=True, remote=str(bare), allow_any_remote=True, caddie_worker_url=worker + "/")
+    out = publish.publish(demo, cfg)
+    assert out["action"] == "pushed" and out["caddie"] == "connected"
+    assert "links to the Caddie" in publish.format_publish(out)
+    index = git("--git-dir", str(bare), "show", "gh-pages:index.html")
+    assert '"caddie_url":"caddie\\/"' in index
+    page = git("--git-dir", str(bare), "show", "gh-pages:caddie/index.html")
+    assert '"worker_url":"https:\\/\\/golf-caddie.shane-example.workers.dev"' in page
+    assert f"connect-src &#x27;self&#x27; {worker};" in page
+    data = git("--git-dir", str(bare), "show", "gh-pages:golf-data.json")
+    assert '"rounds"' in data and '"excerpt"' not in data
+    # Only the Worker address changes: the dashboard is identical, the Caddie page is not, so it is pushed.
+    configure(cfg, caddie_worker_url="https://golf-caddie.other-example.workers.dev")
+    assert publish.publish(demo, cfg)["action"] == "pushed"
+    assert publish.publish(demo, cfg)["action"] == "unchanged"
+
+
+@pytest.mark.parametrize("bad", ["http://golf-caddie.example.workers.dev", "https://golf-caddie.example.workers.dev/chat",
+                                 "https://user:pw@golf-caddie.example.workers.dev", "golf-caddie.example.workers.dev",
+                                 "https://golf-caddie.example.workers.dev/?x=1"])
+def test_a_bad_worker_address_stops_the_build(cfg, demo, bad):
+    configure(cfg, enabled=True, caddie_worker_url=bad)
+    rec = Recorder()
+    with pytest.raises(publish.PublishError, match="caddie_worker_url"):
+        publish.publish(demo, cfg, runner=rec, dry_run=True)
+    assert rec.calls == [] and not (cfg.site_dir / "public").exists()
+
+
+def test_the_privacy_gate_covers_the_caddie_page_and_its_data(cfg, demo, monkeypatch):
+    from golf.dashboard import caddie_page
+
+    real = caddie_page.write_caddie
+
+    def leaky(conn, cfg_, site, worker_url=""):
+        paths = real(conn, cfg_, site, worker_url)
+        page, data = paths
+        page.write_text(page.read_text() + "\n<!-- http://localhost:8787/chat -->\n")
+        data.write_text(data.read_text()[:-1] + ',"leak":{"start_lat":42.281937,"cost_usd":0.2}}')
+        return paths
+
+    monkeypatch.setattr(caddie_page, "write_caddie", leaky)
+    configure(cfg, enabled=True)
+    with pytest.raises(publish.PublishPrivacyError) as e:
+        publish.publish(demo, cfg, runner=Recorder())
+    where = {(f.path, f.code) for f in e.value.findings}
+    assert ("caddie/index.html", "local_host") in where
+    assert {("golf-data.json", "gps"), ("golf-data.json", "api_cost")} <= where
 
 
 def test_the_remote_name_is_resolved_from_the_project_repo(cfg, demo, bare):

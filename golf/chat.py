@@ -79,8 +79,12 @@ def _r(x: Any, nd: int = 1) -> Any:
     return round(x, nd) if isinstance(x, float) else x
 
 
-def chat_bundle(conn: sqlite3.Connection, cfg: Config, *, today: date | None = None) -> dict[str, Any]:
-    """Everything the chat page needs, JSON-serialisable and public-safe."""
+def chat_bundle(conn: sqlite3.Connection, cfg: Config, *, today: date | None = None,
+                excerpts: bool = True) -> dict[str, Any]:
+    """Everything the chat page needs, JSON-serialisable and public-safe.
+
+    excerpts=False leaves out the events' `excerpt` column (the note's own words): the public site's copy
+    (golf.dashboard.caddie_page) carries note summaries, never Shane's verbatim notes."""
     dash = dashboard_data(conn, cfg, public=True, today=today, n_boot=1000)
     facts = round_facts(conn)
     alias = {f["round_id"]: f"r{i}" for i, f in enumerate(facts, start=1)}   # the public dashboard's aliases
@@ -129,6 +133,10 @@ def chat_bundle(conn: sqlite3.Connection, cfg: Config, *, today: date | None = N
                       for q in e.get("equipment") or [] if isinstance(q, dict)],
         "summary": e.get("summary"), "excerpt": e.get("source_excerpt"),
     } for e in load_timeline(conn)]
+    dictionary = DICTIONARY
+    if not excerpts:
+        events = [{k: v for k, v in e.items() if k != "excerpt"} for e in events]
+        dictionary = {**DICTIONARY, "events": {k: v for k, v in DICTIONARY["events"].items() if k != "excerpt"}}
 
     handicap = [{"round": alias.get(h["round_id"], "?"), "date": h["date"], "hi": _r(h.get("hi")),
                  "low_hi": _r(h.get("low_hi")), "n_scores": h.get("n_scores")} for h in hi_series(conn)]
@@ -157,7 +165,7 @@ def chat_bundle(conn: sqlite3.Connection, cfg: Config, *, today: date | None = N
             "club_medians": clubs,
         },
         "notes": NOTES,
-        "dictionary": DICTIONARY,
+        "dictionary": dictionary,
         "tables": {"rounds": rounds, "holes": holes, "shots": shots, "events": events, "handicap": handicap,
                    "courses": courses},
     }

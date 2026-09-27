@@ -705,14 +705,21 @@ def render_dashboard(data: dict) -> str:
 
 
 def build(conn: sqlite3.Connection, cfg: Config, out_path: Path | str | None = None, *, public: bool = False,
-          today: date | None = None) -> Path:
+          today: date | None = None, caddie_link: str | None = None) -> Path:
     """Render the dashboard to out_path and return the path.
 
     Default path: <data_dir>/site/index.html, or <data_dir>/site/public/index.html for public=True, so the
-    shareable build never overwrites the private one.
+    shareable build never overwrites the private one. caddie_link: a relative link to the Caddie page
+    ("caddie/"), shown as "Ask the Caddie" in the header (golf.publish.build_site sets it once the Caddie's
+    relay is configured).
     """
     default = cfg.site_dir / "public" / "index.html" if public else cfg.site_dir / "index.html"
     out = Path(out_path) if out_path else default
     out.parent.mkdir(parents=True, exist_ok=True)
-    out.write_text(render_dashboard(dashboard_data(conn, cfg, public=public, today=today)), encoding="utf-8")
+    data = dashboard_data(conn, cfg, public=public, today=today)
+    if caddie_link:
+        if "://" in caddie_link or caddie_link.startswith(("/", "\\")) or ".." in caddie_link:
+            raise ValueError("caddie_link must be a relative link inside the site, like 'caddie/'")
+        data["caddie_url"] = caddie_link
+    out.write_text(render_dashboard(data), encoding="utf-8")
     return out

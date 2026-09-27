@@ -42,6 +42,11 @@ branch = "gh-pages"    # golf publish force-pushes, so it refuses any other bran
 site_url = "https://sharkweekshane.github.io/golf-analytics/"
 # golf publish only force-pushes to the GitHub repo site_url names (github.com/sharkweekshane/golf-analytics).
 allow_any_remote = false
+# The Caddie on the public site (caddie/): the address of its Cloudflare Worker relay (worker/ in this repo),
+# like "https://golf-caddie.<your-subdomain>.workers.dev". The Worker holds the Meta API key and a passcode;
+# neither is ever in the site. Empty: the Caddie page says it isn't connected yet and the dashboard doesn't
+# link to it. README.md, "Caddie on GitHub Pages", has the setup.
+caddie_worker_url = "https://golf-caddie.golf-caddie-worker.workers.dev"   # deployed 2026-09-27
 
 [caddie]
 # The Caddie chat (golf serve -> /caddie, and `golf caddie ask`): Meta's Muse Spark through the Meta Model API.

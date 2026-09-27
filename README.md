@@ -18,7 +18,8 @@ cost. The only network calls are:
 
 - to the Claude API, when something is extracted;
 - to Meta's Model API (`api.meta.ai`), only when you ask the [Caddie](#the-caddie-in-the-web-app-muse-spark) a
-  question;
+  question (from the published [Caddie page](#caddie-on-github-pages), the question goes from your browser to
+  your own Cloudflare Worker, which forwards it to Meta);
 - to OpenGolfAPI, only when you run `golf courses autofill`;
 - to GitHub, only when the dashboard is published.
 
@@ -278,16 +279,18 @@ New 18Birdies exports need no command: download one and the watcher imports it.
 
 ## Publishing (GitHub Pages)
 
-`golf publish` puts the dashboard at <https://sharkweekshane.github.io/golf-analytics/>.
+`golf publish` puts the dashboard at <https://sharkweekshane.github.io/golf-analytics/>, and the
+[Caddie page](#caddie-on-github-pages) at <https://sharkweekshane.github.io/golf-analytics/caddie/>.
 
 - **Public:** rounds, scores, stats and club distances, the unofficial handicap, lessons and the other
-  timeline events with their summaries and focus areas.
+  timeline events with their summaries and focus areas. `golf-data.json` (what the Caddie page reads) adds
+  the hole-by-hole and shot tables, drills and swing thoughts, but never your notes' own words.
 - **Never public:** file paths or anything naming this Mac, screenshots and notebook photos (or their
   paths), GPS coordinates, API cost and usage, keys, and contact details.
 
 How it works: the dashboard is built with `public=True` into a temporary folder (`index.html`,
-`.nojekyll`, `404.html`), and every file is scanned by `golf.privacy.site_findings` before anything is
-pushed. The scan looks for local paths and this Mac's name, paths to screenshots or notebook photos,
+`caddie/index.html`, `golf-data.json`, `.nojekyll`, `404.html`), and every file is scanned by
+`golf.privacy.site_findings` before anything is pushed. The scan looks for local paths and this Mac's name, paths to screenshots or notebook photos,
 embedded images, GPS coordinates (by key name, by precision, and against the shot coordinates in
 `golf.db`), API cost fields, keys, email addresses and phone numbers. **Any finding aborts the publish.**
 The folder then becomes a one-commit git repository that is force-pushed to the `gh-pages` branch of the
@@ -299,7 +302,8 @@ repository. The commit is authored `golf-analytics <golf-analytics@users.noreply
 own git email, and git runs without inherited `GIT_DIR`-style variables (as set inside a git hook), so it
 can only ever act on that temporary repository. The public page numbers rounds `r1`, `r2`, ... by date:
 18Birdies' own round ids encode when each round was created, so they stay on the Mac. A build that is
-identical to the last published one (apart from its build time) is not pushed again.
+identical to the last published one (apart from its build time) is not pushed again; that comparison
+covers every file, so a change to the Caddie page or `golf-data.json` alone is pushed too.
 
 Settings live under `[publish]` in `config.toml`:
 
@@ -311,6 +315,7 @@ Settings live under `[publish]` in `config.toml`:
 | `branch` | `gh-pages` | The only branch `golf publish` will force-push |
 | `site_url` | `https://sharkweekshane.github.io/golf-analytics/` | Shown after publishing and on the Status page; the push target must be its repo |
 | `allow_any_remote` | `false` | Push to a remote that is not `site_url`'s GitHub repo (tests use a local bare repo) |
+| `caddie_worker_url` | `""` | The Caddie's Cloudflare Worker, `https://golf-caddie.<you>.workers.dev`. Empty: the Caddie page says it isn't connected and the dashboard doesn't link to it |
 
 `golf publish --dry-run` builds and checks without pushing (it works while `enabled` is false) and leaves
 the result in `data/site/public/` to look at. The Status page has a **Publish now** button once publishing
@@ -341,7 +346,7 @@ so a missing credential fails with a message instead of hanging the LaunchAgent.
 | `golf review rounds` / `round <id>` / `fix <id> <hole\|-> <field> <value>` / `accept <id> [--force]` / `reject <id>` | Terminal review of screenshot rounds (the web page is easier) |
 | `golf review events` | Walk the event queue: accept / reject / edit / merge / carry over |
 | `golf analyze lessons` | Before/after comparison per lesson, with the minimum detectable effect |
-| `golf build [--out PATH] [--public]` | Self-contained dashboard HTML: the local, complete version, or with `--public` the shareable one `golf publish` pushes (written to `data/site/public/index.html`) |
+| `golf build [--out PATH] [--public]` | Self-contained dashboard HTML: the local, complete version, or with `--public` the whole public site `golf publish` pushes (dashboard, `caddie/` page and `golf-data.json`, in `data/site/public/`; with `--out`, just the dashboard) |
 | `golf serve [--port 8765] [--open]` | Local web app, bound to 127.0.0.1; also watches Downloads every minute |
 | `golf mcp` | Read-only MCP server on stdio |
 | `golf caddie status` / `key` / `ask "<question>"` | The Caddie: key set or not (never shown), model and calls so far; how to add the key; one question in Terminal |
@@ -497,6 +502,108 @@ figures leave these calls out.
 Compared with the claude.ai page: the Caddie runs on your Meta API credits instead of your Claude plan, and
 reads `golf.db` live, so it always sees the latest import. It needs `golf serve` (or Terminal) on this Mac.
 
+## Caddie on GitHub Pages
+
+<https://sharkweekshane.github.io/golf-analytics/caddie/> is the Caddie on the public site: the same card and
+chat, working from any phone or computer with nothing running on this Mac. Once it is connected, the
+dashboard's header has an **Ask the Caddie** button. Answers come from Muse Spark (`muse-spark-1.3`, medium
+effort), on your Meta API credits. The chat is locked with a passcode; the card is open to everyone, like the
+dashboard.
+
+**Why there is a Worker.** GitHub Pages only serves files, and anything in them is public, so the Meta key
+can't be in the page. A small **Cloudflare Worker** (`worker/` in this repo, free plan) keeps the key as an
+encrypted secret and passes the page's questions on to Meta:
+
+```
+your browser: caddie/index.html + golf-data.json (from GitHub Pages)
+   | runs the conversation and the two lookups (query_table, get_round) over golf-data.json itself
+   | POST /chat  {instructions, input, tools, final}   header X-Caddie-Passcode
+   v
+Cloudflare Worker "golf-caddie" (secrets: MUSE_API_KEY, CADDIE_PASSCODE)
+   | checks the origin, the passcode, the size and shape of the request, the rate limits;
+   | sets model, store: false, reasoning effort, max_output_tokens, tool_choice "auto" itself
+   v
+api.meta.ai/v1/responses  ->  trimmed reply {output, usage, status} back to the page
+```
+
+- **The page** (`golf/dashboard/caddie_page.html`, built by `golf/dashboard/caddie_page.py`) is
+  self-contained: no CDN, no web fonts. Its Content-Security-Policy lets it run only its own script and
+  connect only to this site and the Worker, and blocks form submission, so the passcode never ends up in a URL.
+  A question gets at most 6 rounds of lookups (about 80,000 characters of results), then one last call
+  without tools so the model has to answer. Answers are rendered by the same escape-first markdown renderer
+  as the local Caddie. The conversation lives only in that browser tab (**Clear chat** forgets it).
+- **The passcode** is sent in a header and compared by the Worker in constant time. The page checks a new
+  passcode without calling Meta and keeps it in that browser's `localStorage` (key `golf-caddie.passcode`)
+  until you click **Forget passcode**. A wrong or changed passcode brings the passcode box back with a message.
+- **The Worker** (`worker/src/relay.js`) answers only `POST /chat` and its CORS preflight, only for
+  `https://sharkweekshane.github.io` (anything else gets 403). It accepts only `{instructions, input, tools,
+  final}` of known shapes (plain function tools, at most 12; no built-in tools such as web search), at most
+  200 KB. It refuses `*-contributor` models, sends `store: false`, and never passes on Meta's own error
+  text (an auth error can echo part of the key): the page gets a fixed code, like `out_of_credits`. It logs
+  nothing. Without both secrets, or with a passcode under 12 characters, it answers "not configured".
+- **What is public:** `golf-data.json` is a public file like the dashboard (anyone can download it; the
+  passcode protects your Meta credits, not the data). It is `golf chat-data`'s bundle without the notes'
+  verbatim excerpts, and it passes the same privacy check as the rest of the site.
+- **What goes to Meta:** the question and the conversation so far, the instructions (headline figures,
+  rounds table, column descriptions) and whatever the lookups return, as with the local Caddie.
+
+**Setup (once).** You need a free Cloudflare account and Node 22 (`nvm use 22`; wrangler needs Node 22 or
+later).
+
+1. Sign up at <https://dash.cloudflare.com/sign-up> (the free plan is enough) and confirm your email.
+2. In Terminal, deploy the Worker:
+
+   ```sh
+   cd ~/Desktop/golf-analytics/worker
+   npm install
+   npx wrangler login      # opens the browser: allow wrangler to use your Cloudflare account
+   npx wrangler deploy     # prints the Worker's address: https://golf-caddie.<your-subdomain>.workers.dev
+   ```
+
+   If it asks you to choose a `workers.dev` subdomain, pick any name (say `shane-golf`).
+3. Give the Worker its two secrets. Each command asks for the value: paste or type it and press Return
+   (nothing is saved on this Mac or in the repo).
+
+   ```sh
+   npx wrangler secret put MUSE_API_KEY       # paste the Meta API key (the one from dev.meta.ai)
+   npx wrangler secret put CADDIE_PASSCODE    # a passcode of at least 12 characters, e.g. four random words
+   ```
+
+   To send the key straight from your Keychain instead of pasting it:
+   `security find-generic-password -s golf-analytics.muse-spark -a muse-spark -w | npx wrangler secret put MUSE_API_KEY`.
+4. In `config.toml`, under `[publish]`, set the address `wrangler deploy` printed:
+   `caddie_worker_url = "https://golf-caddie.<your-subdomain>.workers.dev"`.
+5. `golf publish --dry-run` (it checks the site and says "The dashboard links to the Caddie"), then
+   `golf publish`. After a minute or two, open <https://sharkweekshane.github.io/golf-analytics/caddie/> on
+   your phone and enter the passcode once.
+
+Later: `npx wrangler secret put CADDIE_PASSCODE` changes the passcode (each browser asks for the new one);
+`npx wrangler secret put MUSE_API_KEY` replaces the key; `npx wrangler deploy` (from `worker/`) redeploys after
+a change to the Worker or its `[vars]` in `worker/wrangler.toml` (model, effort, output limit); emptying
+`caddie_worker_url` and publishing takes the button off the dashboard; `npx wrangler delete` removes the Worker.
+
+**Cost and abuse.**
+
+- Cloudflare's free plan covers this many times over (100,000 requests a day; the Worker uses a millisecond
+  or two of CPU per request, and waiting for Meta doesn't count). Rate limiting is included.
+- Meta: about a cent a question (2 to 3 calls), as for the local Caddie. These calls are not in `golf.db`'s
+  `llm_calls` or `golf status`; dev.meta.ai shows their usage.
+- The passcode is the lock: the Origin check stops other websites' pages, but not scripts that fake the
+  header. Guessing is slowed to 30 requests a minute per IP address, and even a correct passcode gets at most
+  20 calls to Meta a minute (both per Cloudflare location, and approximate). Use a long passcode, change it if
+  it may have leaked, and keep the Meta account on prepaid credits (or a spending limit, if dev.meta.ai offers
+  one), which caps the worst case.
+- Anyone using a browser where you entered the passcode can ask questions until you click **Forget passcode**.
+- The Worker keeps no logs (`[observability] enabled = false`). `npx wrangler tail` would show live request
+  headers, the passcode's among them, so don't share its output.
+
+**Working on it.** `cd worker && npm test` runs the Worker's tests (Node's own test runner; Meta is stubbed).
+`npx wrangler deploy --dry-run` checks the configuration without deploying. To try the whole loop locally, put
+**fake** values in `worker/.dev.vars` (gitignored) and point `META_BASE` at a local stub, e.g.
+`npx wrangler dev --var META_BASE:http://127.0.0.1:8788/v1 --var ALLOWED_ORIGIN:http://127.0.0.1:8123`, then
+build the site with `caddie_worker_url = "http://127.0.0.1:8787"` and serve it on port 8123 (the privacy check
+refuses to publish a local address, so this can't go out by mistake).
+
 ## Privacy
 
 - Everything personal is under `data/` (gitignored): the export archive, `golf.db`, screenshots, notebook
@@ -602,6 +709,7 @@ on it before switching.
 .venv/bin/python -m pytest -q          # offline: the APIs, osascript, launchctl, OpenGolfAPI, GitHub and the Keychain are all faked
 ```
 
+- `cd worker && npm test` runs the Caddie Worker's tests (Node 22).
 - Tests use synthetic data only (`tests/fixtures`). The watcher tests use temp "Downloads" folders and a
   temp LaunchAgents folder; the publishing tests push to a local bare repository.
 - `-m live` is reserved for tests that call the real API.
@@ -617,6 +725,8 @@ on it before switching.
   | `golf/analytics`, `golf/dashboard` | Analysis and the dashboard |
   | `golf/watch.py` | Hands-off import of new exports, and the LaunchAgent |
   | `golf/publish.py` | GitHub Pages publishing |
+  | `golf/dashboard/caddie_page.*` | The Caddie page for GitHub Pages |
+  | `worker/` | The Caddie's Cloudflare Worker (Node; `npm test`) |
   | `golf/privacy.py` | The pre-commit check and the public-site check |
   | `golf/web` | The local web app |
   | `golf/mcp_server.py` | The MCP server |

@@ -49,3 +49,17 @@ def test_write_bundle(conn, cfg, tmp_path):
 def test_empty_db(conn, cfg):
     b = chat_bundle(conn, cfg)
     assert b["tables"]["rounds"] == [] and b["data_through"] is None
+
+
+def test_public_site_bundle_leaves_out_verbatim_note_excerpts(conn, cfg):
+    seed_demo(conn)
+    full = chat_bundle(conn, cfg)
+    assert any(e.get("excerpt") for e in full["tables"]["events"])       # the claude.ai copy keeps them
+    public = chat_bundle(conn, cfg, excerpts=False)
+    assert public["tables"]["events"] and all("excerpt" not in e for e in public["tables"]["events"])
+    assert "excerpt" not in public["dictionary"]["events"] and "excerpt" in DICTIONARY["events"]
+    for table, cols in public["dictionary"].items():
+        for row in public["tables"][table]:
+            assert set(row) == set(cols), table
+    text = json.dumps(public)
+    assert not any(e["excerpt"] in text for e in full["tables"]["events"] if e.get("excerpt") and len(e["excerpt"]) > 20)
