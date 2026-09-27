@@ -1,0 +1,1452 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>Golf Dashboard</title>
+<style>
+:root {
+  color-scheme: light;
+  /* Light text/graphics tokens meet WCAG on --surface: muted 5.3:1 (tick labels), HI line 4.2:1, warning icon 4.7:1. */
+  --page: #f9f9f7; --surface: #fcfcfb; --ink: #0b0b0b; --ink-2: #52514e; --muted: #6b6a65;
+  --grid: #e1e0d9; --axis: #c3c2b7; --border: rgba(11, 11, 11, 0.10); --wash: #f0efec;
+  --s-round: #2a78d6; --s-trend: #eb6834; --s-hi: #128a62; --s-equip: #eda100;
+  --s-practice: #008300; --s-lesson: #4a3aa7; --s-injury: #e34948; --s-other: #898781;
+  --div-good: #2a78d6; --div-bad: #e34948;
+  --st-good: #0ca30c; --st-warning: #fab219; --st-critical: #d03b3b; --good-text: #006300; --bad-text: #b42318;
+  --icon-warn: #9a6700;
+  --shadow: 0 6px 24px rgba(11, 11, 11, 0.12);
+}
+@media (prefers-color-scheme: dark) {
+  :root:where(:not([data-theme="light"])) {
+    color-scheme: dark;
+    --page: #0d0d0d; --surface: #1a1a19; --ink: #ffffff; --ink-2: #c3c2b7; --muted: #898781;
+    --grid: #2c2c2a; --axis: #383835; --border: rgba(255, 255, 255, 0.10); --wash: #383835;
+    --s-round: #3987e5; --s-trend: #d95926; --s-hi: #199e70; --s-equip: #c98500;
+    --s-practice: #008300; --s-lesson: #9085e9; --s-injury: #e66767; --s-other: #898781;
+    --div-good: #3987e5; --div-bad: #e66767; --good-text: #0ca30c; --bad-text: #e66767;
+    --icon-warn: #fab219;
+    --shadow: 0 6px 24px rgba(0, 0, 0, 0.5);
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --page: #0d0d0d; --surface: #1a1a19; --ink: #ffffff; --ink-2: #c3c2b7; --muted: #898781;
+  --grid: #2c2c2a; --axis: #383835; --border: rgba(255, 255, 255, 0.10); --wash: #383835;
+  --s-round: #3987e5; --s-trend: #d95926; --s-hi: #199e70; --s-equip: #c98500;
+  --s-practice: #008300; --s-lesson: #9085e9; --s-injury: #e66767; --s-other: #898781;
+  --div-good: #3987e5; --div-bad: #e66767; --good-text: #0ca30c; --bad-text: #e66767;
+  --icon-warn: #fab219;
+  --shadow: 0 6px 24px rgba(0, 0, 0, 0.5);
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0; background: var(--page); color: var(--ink);
+  font: 14px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+  overflow-x: hidden;
+}
+.wrap { max-width: 1120px; margin: 0 auto; padding: 0 16px; }
+header.top { padding: 24px 0 12px; }
+.top-row { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px 16px; }
+.top-row > div { min-width: 0; }
+.caddie-link { display: inline-flex; align-items: center; gap: 8px; flex: none; min-height: 40px; padding: 8px 16px 8px 12px;
+  border: 1px solid var(--border); border-radius: 999px; background: var(--surface); color: var(--ink);
+  font-size: 14px; font-weight: 600; text-decoration: none; box-shadow: 0 1px 2px rgba(11, 11, 11, 0.06); }
+.caddie-link svg { color: var(--s-hi); flex: none; }
+.caddie-link:hover { border-color: var(--s-hi); }
+.caddie-link:focus-visible { outline: 2px solid var(--s-hi); outline-offset: 2px; }
+h1 { font-size: 22px; margin: 0; font-weight: 650; letter-spacing: -0.01em; }
+h2 { font-size: 16px; margin: 0; font-weight: 600; }
+h3 { font-size: 13px; margin: 0; font-weight: 600; }
+p { margin: 0; }
+.meta, .sub { color: var(--ink-2); font-size: 13px; margin-top: 4px; }
+.muted { color: var(--ink-2); }
+.small { font-size: 12px; }
+code { font: 12px ui-monospace, SFMono-Regular, Menlo, monospace; background: var(--page); border: 1px solid var(--border); border-radius: 4px; padding: 1px 4px; overflow-wrap: anywhere; }
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 16px; margin: 0 0 16px; min-width: 0; }
+.card-head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 4px 16px; }
+.scope { font-size: 12px; color: var(--ink-2); }
+.banner { display: flex; gap: 10px; align-items: flex-start; background: var(--surface); border: 1px solid var(--border); border-left: 4px solid var(--st-warning); border-radius: 10px; padding: 10px 12px; margin: 0 0 16px; }
+.icon-warning { color: var(--icon-warn); }
+.icon-ok { color: var(--st-good); }
+.icon-info { color: var(--ink-2); }
+.kpis { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin: 0 0 16px; }
+@media (min-width: 700px) { .kpis { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+@media (min-width: 1040px) { .kpis { grid-template-columns: repeat(6, minmax(0, 1fr)); } }
+.tile { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 12px 14px; min-width: 0; }
+.tile .label { font-size: 12px; color: var(--ink-2); display: flex; flex-wrap: wrap; gap: 4px 6px; align-items: center; }
+.tile .value { font-size: 28px; font-weight: 600; line-height: 1.15; margin-top: 4px; }
+.tile.hero .value { font-size: 48px; line-height: 1.05; }
+.tile .tsub { font-size: 12px; color: var(--ink-2); margin-top: 2px; overflow-wrap: anywhere; }
+/* Phones: compact tiles so the score chart starts on the first screen; details stay on the hero tile. */
+@media (max-width: 560px) {
+  .kpis { gap: 8px; }
+  .tile { padding: 8px 10px; }
+  .tile .value { font-size: 22px; }
+  .tile.hero .value { font-size: 34px; }
+  .tile:not(.hero) .tsub { display: none; }
+}
+.verdict { font-size: 15px; color: var(--ink); margin: 6px 0 4px; }
+.delta { font-size: 12px; margin-top: 2px; color: var(--ink-2); }
+.delta.good { color: var(--good-text); }
+.delta.bad { color: var(--bad-text); }
+.badge { font-size: 11px; border: 1px solid var(--border); border-radius: 999px; padding: 0 7px; color: var(--ink-2); }
+.filters { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; margin: 0 0 16px; }
+.filters label { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; color: var(--ink-2); font-weight: 600; }
+.filters select { font: inherit; font-size: 14px; color: var(--ink); background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 6px 10px; min-height: 36px; max-width: calc(100vw - 110px); }
+.filters select:focus-visible { outline: 2px solid var(--s-round); outline-offset: 2px; }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 12px; color: var(--ink-2); margin: 12px 0 4px; }
+.legend .key { display: inline-flex; align-items: center; gap: 6px; }
+.legend svg { display: block; flex: none; }
+.chart { position: relative; width: 100%; min-width: 0; }
+.chart svg { display: block; }
+.foot { font-size: 12px; color: var(--ink-2); margin-top: 6px; }
+svg text { font-family: inherit; }
+.tick { fill: var(--muted); font-size: 11px; font-variant-numeric: tabular-nums; }
+.axis-note { fill: var(--ink-2); font-size: 11px; }
+.grid { stroke: var(--grid); stroke-width: 1; shape-rendering: crispEdges; }
+.axis { stroke: var(--axis); stroke-width: 1; shape-rendering: crispEdges; }
+.dot { fill: var(--s-round); stroke: var(--surface); stroke-width: 2; }
+.b18 { fill: none; stroke: var(--muted); stroke-width: 1.5; }
+.trend { fill: none; stroke: var(--s-trend); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+.band { fill: var(--s-trend); fill-opacity: 0.12; stroke: none; }
+.hi-line { fill: none; stroke: var(--s-hi); stroke-width: 2; stroke-dasharray: 6 4; stroke-linejoin: round; }
+.lesson-rule { stroke: var(--s-lesson); stroke-width: 1.5; }
+.lesson-rule.faint { stroke-opacity: 0.45; stroke-width: 1; }
+.mark-lesson { fill: var(--s-lesson); stroke: var(--surface); stroke-width: 2; }
+.mark-practice { fill: var(--s-practice); stroke: var(--surface); stroke-width: 2; }
+.mark-equipment { fill: var(--s-equip); stroke: var(--surface); stroke-width: 1.5; }
+.mark-injury { fill: var(--s-injury); }
+.mark-other { fill: var(--s-other); stroke: var(--surface); stroke-width: 2; }
+.planned { fill: var(--surface) !important; stroke-width: 2; }
+.mark-lesson.planned { stroke: var(--s-lesson); }
+.mark-practice.planned { stroke: var(--s-practice); }
+.mark-other.planned { stroke: var(--s-other); }
+.lane-label { fill: var(--ink-2); font-size: 11px; font-weight: 600; }
+.end-label { fill: var(--ink-2); font-size: 11px; }
+.club-label { fill: var(--ink); font-size: 12px; font-weight: 600; }
+.club-value { fill: var(--ink); font-size: 12px; font-variant-numeric: tabular-nums; }
+.club-n { fill: var(--muted); font-size: 11px; font-variant-numeric: tabular-nums; }
+.few { opacity: 0.5; }
+.connector { stroke: var(--axis); stroke-width: 1; }
+.hole-bar { fill: var(--div-bad); fill-opacity: 0.55; }
+.hole-bar.good { fill: var(--div-good); }
+.hole-last { stroke: var(--ink); stroke-width: 2; stroke-linecap: round; }
+.span-practice { fill: var(--s-practice); fill-opacity: 0.10; }
+.span-injury { fill: var(--s-injury); fill-opacity: 0.12; }
+.cross { stroke: var(--ink-2); stroke-width: 1; }
+.ring { fill: none; stroke: var(--ink); stroke-width: 2; }
+.hit { fill: transparent; pointer-events: all; cursor: pointer; outline: none; }
+.hit:focus-visible { stroke: var(--ink); stroke-width: 1.5; stroke-dasharray: 3 2; }
+.row-hit:hover + .row-lift, .row-hit:focus-visible + .row-lift { fill: var(--wash); }
+.row-lift { fill: transparent; pointer-events: none; }
+.iqr { fill: var(--s-round); }
+.median { stroke: var(--ink); stroke-width: 2; stroke-linecap: round; }
+.shot { fill: var(--s-round); fill-opacity: 0.6; stroke: var(--surface); stroke-width: 1; }
+.shot.after { fill: var(--surface); fill-opacity: 1; stroke: var(--s-round); stroke-width: 1.25; }
+.bad-shot { stroke: var(--muted); stroke-width: 1.5; stroke-linecap: round; }
+.shot, .iqr, .median, .bad-shot, .club-label, .club-value, .club-n { pointer-events: none; }
+.ci { stroke: var(--s-round); stroke-width: 2; stroke-linecap: round; }
+.ci-change95 { stroke: var(--s-lesson); stroke-width: 2; stroke-linecap: round; }
+.ci-change80 { stroke: var(--s-lesson); stroke-width: 6; stroke-linecap: round; }
+.dot-before { fill: var(--surface); stroke: var(--s-round); stroke-width: 2; }
+.dot-after { fill: var(--s-round); stroke: var(--surface); stroke-width: 2; }
+.dot-change { fill: var(--s-lesson); stroke: var(--surface); stroke-width: 2; }
+.mde-band { fill: var(--wash); }
+.zero { stroke: var(--ink-2); stroke-width: 1; shape-rendering: crispEdges; }
+.tooltip { position: fixed; z-index: 20; pointer-events: none; background: var(--surface); color: var(--ink); border: 1px solid var(--border); box-shadow: var(--shadow); border-radius: 8px; padding: 8px 10px; font-size: 12px; max-width: min(300px, calc(100vw - 16px)); }
+.tt-head { color: var(--ink-2); margin-bottom: 4px; }
+.tt-row { display: flex; align-items: baseline; gap: 6px; }
+.tt-row strong { font-weight: 600; font-variant-numeric: tabular-nums; }
+.tt-label { color: var(--ink-2); }
+.tt-note { color: var(--ink-2); margin-top: 4px; }
+.tt-key { flex: none; display: inline-block; width: 12px; height: 2px; border-radius: 1px; align-self: center; }
+.k-round { background: var(--s-round); } .k-trend { background: var(--s-trend); } .k-hi { background: var(--s-hi); }
+.k-lesson { background: var(--s-lesson); } .k-equipment { background: var(--s-equip); } .k-practice { background: var(--s-practice); }
+.k-injury { background: var(--s-injury); } .k-other { background: var(--s-other); } .k-b18 { background: var(--muted); }
+.mde { font-size: 15px; line-height: 1.45; background: var(--page); border: 1px solid var(--border); border-left: 4px solid var(--s-lesson); border-radius: 8px; padding: 10px 12px; margin: 12px 0 4px; }
+.lesson { border-top: 1px solid var(--grid); padding: 14px 0 12px; }
+.lesson:first-of-type { border-top: 0; }
+.lesson-head { display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: baseline; }
+.lesson-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 20px; margin: 8px 0; }
+@media (max-width: 640px) { .lesson-grid { grid-template-columns: 1fr; } }
+.mini-cap { font-size: 12px; color: var(--ink-2); }
+.lesson p { margin-top: 6px; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+.chip { font-size: 12px; border: 1px solid var(--border); border-radius: 999px; padding: 1px 8px; color: var(--ink-2); background: var(--surface); }
+.flag { display: flex; gap: 6px; font-size: 12px; color: var(--ink-2); margin-top: 4px; }
+.caveats { background: var(--page); border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; margin-top: 12px; }
+.caveats ul { margin: 6px 0 0; padding-left: 18px; }
+.caveats li { margin: 3px 0; }
+.multiples { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 12px; margin-top: 12px; }
+@media (max-width: 400px) { .multiples { grid-template-columns: minmax(0, 1fr); } }
+.panel { border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px 8px; min-width: 0; }
+.panel-top { display: flex; justify-content: space-between; gap: 8px; align-items: baseline; }
+.better { font-size: 11px; color: var(--muted); white-space: nowrap; }
+.headline { font-size: 18px; font-weight: 600; margin-top: 2px; }
+.detail { font-size: 12px; color: var(--ink-2); }
+.desc { font-size: 12px; color: var(--ink-2); margin-top: 6px; }
+.identity { font-size: 14px; margin-top: 10px; }
+.coverage { font-size: 13px; margin-top: 10px; }
+.holes-strip { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
+.holes-strip span { font-size: 12px; border: 1px solid var(--border); border-radius: 6px; padding: 1px 6px; color: var(--ink-2); font-variant-numeric: tabular-nums; }
+.holes-strip span.low { border-color: var(--st-warning); }
+details { margin-top: 12px; }
+summary { cursor: pointer; color: var(--ink-2); font-size: 13px; }
+.table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; margin-top: 8px; }
+table { border-collapse: collapse; width: 100%; font-size: 13px; }
+th, td { padding: 6px 8px; text-align: left; border-bottom: 1px solid var(--grid); white-space: nowrap; vertical-align: middle; }
+th { font-weight: 600; color: var(--ink-2); font-size: 12px; }
+.num { text-align: right; font-variant-numeric: tabular-nums; }
+td.wrap-cell { white-space: normal; min-width: 120px; }
+.partial { color: var(--ink-2); font-size: 11px; }
+tr.round-row { cursor: pointer; }
+tr.round-row:hover td { background: var(--page); }
+tr.round-row.open td { background: var(--page); border-bottom-color: transparent; }
+tr.detail > td { background: var(--page); white-space: normal; padding: 4px 8px 14px; }
+.expander { font: 16px/1 system-ui, sans-serif; color: var(--ink-2); background: none; border: 0; padding: 4px 6px; min-width: 28px; min-height: 28px; cursor: pointer; border-radius: 4px; }
+.expander:focus-visible, .hit:focus-visible, summary:focus-visible { outline: 2px solid var(--s-round); outline-offset: 2px; }
+.tier { display: inline-block; min-width: 18px; text-align: center; border: 1px solid var(--border); border-radius: 4px; font-size: 11px; padding: 0 4px; color: var(--ink-2); }
+.show-sm { display: none; }
+@media (max-width: 560px) { .hide-sm { display: none; } .show-sm { display: inline; } th, td { padding: 6px 5px; } td.wrap-cell { min-width: 72px; } }
+/* The detail cell must not size the rounds table: its scorecards scroll inside instead. */
+.round-detail { display: grid; gap: 10px; max-width: min(760px, calc(100vw - 88px)); min-width: 0; }
+.round-detail > * { min-width: 0; }
+.scorecard { display: flex; flex-wrap: wrap; gap: 12px 24px; min-width: 0; }
+.scorecard > .table-wrap { max-width: 100%; }
+.sc-table { width: auto; border-collapse: collapse; font-size: 12px; }
+.sc-table th, .sc-table td { width: 30px; min-width: 30px; padding: 3px 0; text-align: center; border-bottom: 1px solid var(--grid); font-variant-numeric: tabular-nums; }
+.sc-table th:first-child, .sc-table td:first-child { width: auto; min-width: 48px; text-align: left; padding-right: 6px; color: var(--ink-2); font-weight: 600; }
+.sc-table .tot { font-weight: 600; min-width: 34px; }
+@media (max-width: 480px) {
+  .sc-table th, .sc-table td { width: 23px; min-width: 23px; }
+  .sc-table th:first-child, .sc-table td:first-child { min-width: 34px; padding-right: 3px; }
+  .sc-table .tot { min-width: 28px; }
+  .sc-table .sc { width: 20px; height: 20px; }
+}
+.sc { display: inline-flex; width: 22px; height: 22px; align-items: center; justify-content: center; border: 1.5px solid transparent; }
+.sc.eagle { border-color: var(--div-good); border-radius: 50%; box-shadow: 0 0 0 1.5px var(--page), 0 0 0 3px var(--div-good); background: color-mix(in srgb, var(--div-good) 30%, transparent); }
+.sc.birdie { border-color: var(--div-good); border-radius: 50%; background: color-mix(in srgb, var(--div-good) 14%, transparent); }
+.sc.bogey { border-color: var(--div-bad); border-radius: 3px; background: color-mix(in srgb, var(--div-bad) 10%, transparent); }
+.sc.double { border-color: var(--div-bad); border-radius: 3px; box-shadow: 0 0 0 1.5px var(--page), 0 0 0 3px var(--div-bad); background: color-mix(in srgb, var(--div-bad) 20%, transparent); }
+.sc.triple { border-color: var(--div-bad); border-radius: 3px; box-shadow: 0 0 0 1.5px var(--page), 0 0 0 3px var(--div-bad); background: color-mix(in srgb, var(--div-bad) 38%, transparent); }
+.sc-legend { display: flex; flex-wrap: wrap; gap: 6px 12px; font-size: 12px; color: var(--ink-2); align-items: center; padding-left: 3px; }
+.sc-legend span.item { display: inline-flex; align-items: center; gap: 4px; }
+.sc-legend .sc { width: 16px; height: 16px; }
+.qlist { list-style: none; margin: 10px 0 0; padding: 0; }
+.qlist li { display: flex; gap: 8px; padding: 6px 0; border-top: 1px solid var(--grid); }
+.qlist li:first-child { border-top: 0; }
+.qicon { flex: none; width: 16px; text-align: center; }
+.empty { padding: 4px 0; }
+.empty ol { margin: 8px 0 0; padding-left: 20px; }
+.empty li { margin: 4px 0; }
+footer.wrap { color: var(--muted); font-size: 12px; padding-bottom: 32px; }
+@media print { .card, .tile, .panel { break-inside: avoid; } .tooltip { display: none; } }
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="wrap top-row">
+    <div>
+      <h1 id="title">Golf</h1>
+      <p class="meta" id="meta"></p>
+    </div>
+    <a class="caddie-link" id="caddie-link" href="caddie/" hidden><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20.5l1.4-4.9A8 8 0 1 1 21 12z"/><path d="M9 10h6M9 13.5h4"/></svg>Ask the Caddie</a>
+  </div>
+</header>
+<main class="wrap" id="main">
+  <noscript><div class="card">This dashboard needs JavaScript to draw its charts.</div></noscript>
+  <div id="banner"></div>
+  <section id="empty-card" class="card" hidden></section>
+  <section id="kpis" class="kpis" aria-label="Key numbers (all courses)"></section>
+  <div id="filters" class="filters" hidden>
+    <label for="course">Course <select id="course"></select></label>
+    <span class="small muted" id="filter-note">Scopes the score charts, lessons, stats, club distances and the rounds table below.</span>
+  </div>
+  <section id="hero-card" class="card">
+    <div class="card-head"><h2 id="hero-title">Strokes over par per 9 holes</h2><span class="small muted">&#8593; better</span></div>
+    <div class="sub" id="hero-sub"></div>
+    <div class="legend" id="hero-legend"></div>
+    <div class="chart" id="hero-chart"></div>
+    <p class="foot" id="hero-foot"></p>
+  </section>
+  <section id="diff-card" class="card">
+    <div class="card-head"><h2>Handicap differential per round (18-hole equivalent)</h2><span class="small muted">&#8593; better</span></div>
+    <p class="sub" id="diff-sub"></p>
+    <details id="diff-method"><summary>How these differentials are computed</summary><p class="small muted" id="diff-method-text"></p></details>
+    <div class="legend" id="diff-legend"></div>
+    <div class="chart" id="diff-chart"></div>
+    <p class="foot" id="diff-foot"></p>
+  </section>
+  <section id="lesson-card" class="card">
+    <div class="card-head"><h2>Lessons: before and after</h2></div>
+    <p class="sub" id="lesson-sub"></p>
+    <div id="lesson-body"></div>
+  </section>
+  <section id="multiples-card" class="card">
+    <div class="card-head"><h2>Stats over time, per 9 holes</h2><span class="small muted">&#8593; better in every panel</span></div>
+    <p class="sub" id="multiples-sub"></p>
+    <p class="identity" id="identity"></p>
+    <div class="multiples" id="multiples"></div>
+    <p class="foot" id="multiples-foot"></p>
+    <details id="multiples-table"><summary>Show these stats as a table</summary><div class="table-wrap"></div></details>
+  </section>
+  <section id="holes-card" class="card" hidden>
+    <div class="card-head"><h2 id="holes-title">Hole by hole</h2><span class="small muted">strokes over par</span></div>
+    <p class="sub" id="holes-sub"></p>
+    <div class="chart" id="holes-chart"></div>
+    <details id="holes-table"><summary>Show as a table</summary><div class="table-wrap"></div></details>
+  </section>
+  <section id="clubs-card" class="card" hidden>
+    <div class="card-head"><h2>Club distances from GPS shot tracking</h2><span class="small muted">yards</span></div>
+    <p class="sub">A shot's distance is measured to where the next shot started, so it includes roll, mishits and anything else that happened to the ball. It is not carry, and one bad swing moves it a lot: read the median and the middle half, not the longest dot.</p>
+    <div class="legend" id="clubs-legend"></div>
+    <div class="chart" id="clubs-chart"></div>
+    <p class="coverage" id="clubs-coverage"></p>
+    <details id="clubs-table"><summary>Show club distances, left-out shots and per-hole coverage</summary><div class="table-wrap"></div><p class="foot" id="clubs-foot"></p><div id="clubs-holes"></div></details>
+  </section>
+  <section id="rounds-card" class="card">
+    <div class="card-head"><h2>Rounds</h2><span class="small muted" id="rounds-scope">Select a round for its scorecard</span></div>
+    <div class="table-wrap" id="rounds-table"></div>
+  </section>
+  <section id="timeline-card" class="card">
+    <div class="card-head"><h2>Timeline</h2><span class="scope" id="timeline-scope"></span></div>
+    <p class="sub">Lessons, practice, equipment and injuries from the golf notes, on the same dates as the charts above.</p>
+    <div class="chart" id="timeline-chart"></div>
+    <details id="timeline-list"><summary>Show events as a list</summary><div class="table-wrap"></div></details>
+  </section>
+  <section id="quality-card" class="card">
+    <div class="card-head"><h2>Data quality</h2><span class="scope" id="quality-scope"></span></div>
+    <ul class="qlist" id="quality-list"></ul>
+    <div id="quality-extra"></div>
+  </section>
+</main>
+<footer class="wrap" id="footer">This page is self-contained and makes no network requests.</footer>
+<div id="tooltip" class="tooltip" role="status" aria-live="polite" hidden></div>
+<script type="application/json" id="golf-data">{"schema":2,"generated_at":"2026-09-27T23:06:11+00:00","today":"2026-09-27","player":"Shane","public":true,"is_demo":false,"empty":false,"metric":{"key":"differential","label":"Score differential (18-hole equivalent)","short":"differential","note":"Unofficial: playing conditions (PCC) are not applied. A 9-hole round counts as 2 × its 9-hole differential and weighs half."},"score":{"key":"to_par_9","label":"Strokes over par per 9 holes","short":"to par per 9","note":"Each dot is a 9-hole round. An 18-hole round is a square at half its score to par, the average of its two nines, and weighs twice as much in the trend."},"kpis":[{"id":"last5","label":"Last 5 rounds","badge":"to par per 9","value":24.8,"display":"+24.8","sub":"average over 45 holes · Sep 9 – Sep 24","delta":{"value":-3.0571,"good":true,"bad":false,"text":"3.1 better than the 5 before"}},{"id":"best9","label":"Best 9 holes","value":19,"display":"+19","sub":"54 at Southborough Golf Club · Sep 24"},{"id":"hi","label":"Handicap Index","badge":"unofficial","value":51.2,"display":"51.2","sub":"≈ 23 strokes per 9 at Southborough Golf Club · 9-hole rounds included · PCC not applied","home":{"strokes":23,"course":"Southborough Golf Club"}},{"id":"season","label":"Rounds in 2026","value":16,"display":"16","sub":"14 nines · 2 eighteens"},{"id":"through","label":"Rounds through","value":"2026-09-24","display":"Sep 24","sub":"16 rounds · 18Birdies data as of Sep 25"}],"data_through":"2026-09-24","courses":[{"key":"all","label":"All courses","n":16},{"key":"c1","label":"Southborough Golf Club","n":13},{"key":"other","label":"Other courses","n":3}],"n":16,"hero":{"verdict":"Trend now +24.6 per 9 holes (80% noise band +22.8 to +26.4). Three weeks earlier (Aug 28) it was +27.7: 3.0 better now. Its best stretch: +22.9 around Aug 12. At Southborough Golf Club (13 rounds) it is +23.8.","points":[{"id":"r1","date":"2026-07-08","y":32.0,"holes":9,"gross":67,"to_par":32,"par":35,"course":"Southborough Golf Club","halves":null},{"id":"r2","date":"2026-07-15","y":23.0,"holes":9,"gross":58,"to_par":23,"par":35,"course":"Southborough Golf Club","halves":null},{"id":"r3","date":"2026-08-05","y":21.0,"holes":9,"gross":56,"to_par":21,"par":35,"course":"Southborough Golf Club","halves":null},{"id":"r4","date":"2026-08-10","y":23.0,"holes":9,"gross":58,"to_par":23,"par":35,"course":"Southborough Golf Club","halves":null},{"id":"r5","date":"2026-08-12","y":21.0,"holes":9,"gross":56,"to_par":21,"par":35,"course":"Southborough Golf Club","halves":null},{"id":"r6","date":"2026-08-14","y":27.0,"holes":9,"gross":62,"to_par":27,"par":35,"course":"Southborough Golf Club","halves":null},{"id":"r7","date":"2026-08-17","y":27.0,"holes":9,"gross":62,"to_par":27,"par":35,"course":"Southborough Golf Club","halves":null},{"id":"r8","date":"2026-08-18","y":22.0,"holes":9,"gross":57,"to_par":22,"par":35,"course":"Southborough Golf Club","halves":null},{"id":"r9","date":"2026-08-20","y":30.5,"holes":18,"gross":131,"to_par":61,"par":70,"course":"Oyster Bay Golf Links","halves":{"front":31,"back":30}},{"id":"r10","date":"2026-08-22","y":27.5,"holes":18,"gross":127,"to_par":55,"par":72,"course":"Barefoot Resort - Dye Course","halves":{"front":26,"back":29}},{"id":"r11","date":"2026-08-28","y":30.0,"holes":9,"gross":65,"to_par":30,"par":35,"course":"Southborough Golf Club","halves":null},{"id":"r12","date":"2026-09-09","y":27.0,"holes":9,"gross":63,"to_par":27,"par":36,"course":"Butter Brook Golf Club","halves":null},{"id":"r13","date":"2026-09-15","y":30.0,"holes":9,"gross":65,"to_par":30,"par":35,"course":"Southborough Golf Club","halves":null},{"id":"r14","date":"2026-09-19","y":25.0,"holes":9,"gross":60,"to_par":25,"par":35,"course":"Southborough Golf Club","halves":null},{"id":"r15","date":"2026-09-19","y":23.0,"holes":9,"gross":58,"to_par":23,"par":35,"course":"Southborough Golf Club","halves":null},{"id":"r16","date":"2026-09-24","y":19.0,"holes":9,"gross":54,"to_par":19,"par":35,"course":"Southborough Golf Club","halves":null}],"trend":[{"date":"2026-07-08","y":32.0,"lo":26.9733,"hi":37.0267},{"date":"2026-07-15","y":26.8571,"lo":23.2667,"hi":30.4476},{"date":"2026-08-05","y":24.3243,"lo":21.3448,"hi":27.3039},{"date":"2026-08-10","y":23.84,"lo":21.2035,"hi":26.4765},{"date":"2026-08-12","y":22.9091,"lo":20.4892,"hi":25.329},{"date":"2026-08-14","y":24.1533,"lo":21.8789,"hi":26.4276},{"date":"2026-08-17","y":24.9746,"lo":22.8016,"hi":27.1475},{"date":"2026-08-18","y":24.1482,"lo":22.0475,"hi":26.2489},{"date":"2026-08-20","y":26.8513,"lo":24.9163,"hi":28.7863},{"date":"2026-08-22","y":27.0861,"lo":25.303,"hi":28.8693},{"date":"2026-08-28","y":27.6526,"lo":25.9152,"hi":29.39},{"date":"2026-09-09","y":27.5183,"lo":25.7936,"hi":29.2429},{"date":"2026-09-15","y":28.0528,"lo":26.3198,"hi":29.7857},{"date":"2026-09-19","y":27.3717,"lo":25.6195,"hi":29.1239},{"date":"2026-09-19","y":26.3694,"lo":24.5941,"hi":28.1448},{"date":"2026-09-24","y":24.6441,"lo":22.8459,"hi":26.4424}],"missing":0,"missing_note":"","sigma":3.9223},"diff":{"points":[{"id":"r1","date":"2026-07-08","holes":9,"ours":62.3,"nine9":34.9,"rated":true,"kind":"nine_hole_scaled","b18":41.8,"course":"Southborough Golf Club","to_par":32},{"id":"r2","date":"2026-07-15","holes":9,"ours":53.3,"nine9":25.9,"rated":true,"kind":"nine_hole_scaled","b18":51.8,"course":"Southborough Golf Club","to_par":23},{"id":"r3","date":"2026-08-05","holes":9,"ours":51.3,"nine9":23.9,"rated":true,"kind":"nine_hole_scaled","b18":47.8,"course":"Southborough Golf Club","to_par":21},{"id":"r4","date":"2026-08-10","holes":9,"ours":53.3,"nine9":25.9,"rated":true,"kind":"nine_hole_scaled","b18":51.8,"course":"Southborough Golf Club","to_par":23},{"id":"r5","date":"2026-08-12","holes":9,"ours":51.3,"nine9":23.9,"rated":true,"kind":"nine_hole_scaled","b18":47.8,"course":"Southborough Golf Club","to_par":21},{"id":"r6","date":"2026-08-14","holes":9,"ours":57.3,"nine9":29.9,"rated":true,"kind":"nine_hole_scaled","b18":59.8,"course":"Southborough Golf Club","to_par":27},{"id":"r7","date":"2026-08-17","holes":9,"ours":57.3,"nine9":29.9,"rated":true,"kind":"nine_hole_scaled","b18":59.8,"course":"Southborough Golf Club","to_par":27},{"id":"r8","date":"2026-08-18","holes":9,"ours":52.8,"nine9":24.9,"rated":true,"kind":"nine_hole_scaled","b18":49.8,"course":"Southborough Golf Club","to_par":22},{"id":"r9","date":"2026-08-20","holes":18,"ours":59.7,"nine9":null,"rated":true,"kind":"ndb_adjusted","b18":60.1,"course":"Oyster Bay Golf Links","to_par":61},{"id":"r10","date":"2026-08-22","holes":18,"ours":50.6,"nine9":null,"rated":true,"kind":"ndb_adjusted","b18":49.7,"course":"Barefoot Resort - Dye Course","to_par":55},{"id":"r11","date":"2026-08-28","holes":9,"ours":60.7,"nine9":32.9,"rated":true,"kind":"nine_hole_scaled","b18":65.8,"course":"Southborough Golf Club","to_par":30},{"id":"r12","date":"2026-09-09","holes":9,"ours":53.9,"nine9":26.1,"rated":true,"kind":"nine_hole_scaled","b18":51.9,"course":"Butter Brook Golf Club","to_par":27},{"id":"r13","date":"2026-09-15","holes":9,"ours":60.9,"nine9":32.9,"rated":true,"kind":"nine_hole_scaled","b18":65.8,"course":"Southborough Golf Club","to_par":30},{"id":"r14","date":"2026-09-19","holes":9,"ours":55.9,"nine9":27.9,"rated":true,"kind":"nine_hole_scaled","b18":55.8,"course":"Southborough Golf Club","to_par":25},{"id":"r15","date":"2026-09-19","holes":9,"ours":53.9,"nine9":25.9,"rated":true,"kind":"nine_hole_scaled","b18":51.8,"course":"Southborough Golf Club","to_par":23},{"id":"r16","date":"2026-09-24","holes":9,"ours":50.1,"nine9":21.9,"rated":true,"kind":"nine_hole_scaled","b18":43.8,"course":"Southborough Golf Club","to_par":19}],"hi":[{"date":"2026-08-14","hi":50.3},{"date":"2026-08-17","hi":51.3},{"date":"2026-08-18","hi":51.3},{"date":"2026-08-20","hi":51.8},{"date":"2026-08-22","hi":51.1},{"date":"2026-08-28","hi":51.1},{"date":"2026-09-09","hi":51.5},{"date":"2026-09-15","hi":51.5},{"date":"2026-09-19","hi":51.5},{"date":"2026-09-19","hi":51.9},{"date":"2026-09-24","hi":51.2}],"n_ours":16,"n_18b":16,"note":""},"lessons":{"sigma":7.4586,"sigma_n":16,"sigma_basis":"all rounds (9-hole doubled)","sigma_mssd":7.256,"n_before":5,"n_after":5,"learning_window_days":14,"mde_n":13.2082,"mde_sentence":"With a round-to-round spread of σ≈7.5 differential points, a change must be about 13.2 differential points (roughly 6.7 strokes per 9 holes) to stand out with 5 rounds each side (about 9.3 with 10, 6.6 with 20).","unit":"differential points","strokes_per_unit_9":0.508,"lessons":[],"caveats":["These are before\/after descriptions, not causal estimates: practice, weather, courses, tees, form and luck all change too.","Regression to the mean: lessons often follow a bad stretch, and scores usually recover toward average without any help. That can look like a 2-stroke gain when nothing changed.","Equipment changed alongside a lesson cannot be separated from it.","Seasonality, course and tee mix, and playing conditions (PCC is not applied) all add noise.","Intervals are percentile bootstraps over only a few rounds; they are narrower than they should be at this sample size."],"method":"Mean outcome of the rounds before each lesson vs the rounds after a 14-day learning window; 9-hole rounds count half. Intervals are percentile bootstraps over rounds (display only)."},"multiples":[{"key":"fir_pct","label":"Fairways hit","unit":"pct","better":"higher","tier":"A","group":null,"desc":"Share of par-4 and par-5 tee shots that finished in the fairway.","headline":"32% (95% CI 18%–51%)","detail":"9 of 28 · 4 rounds","points":[{"id":"r1","date":"2026-07-08","v":0.2857,"ewma":0.2857,"n":7,"full":false},{"id":"r2","date":"2026-07-15","v":0.4286,"ewma":0.3673,"n":7,"full":false},{"id":"r3","date":"2026-08-05","v":0.2857,"ewma":0.332,"n":7,"full":false},{"id":"r6","date":"2026-08-14","v":0.2857,"ewma":0.3151,"n":7,"full":false}]},{"key":"gir_9","label":"Greens in regulation per 9","unit":"num","better":"higher","tier":"A","group":null,"desc":"Greens reached in par − 2 strokes or fewer, per 9 holes (9 would be every green).","headline":"1.2 (95% CI 0.7–2.0)","detail":"11 of 81 greens · 9 rounds","points":[{"id":"r1","date":"2026-07-08","v":1.0,"ewma":1.0,"n":9,"full":false},{"id":"r2","date":"2026-07-15","v":0.0,"ewma":0.4286,"n":9,"full":false},{"id":"r3","date":"2026-08-05","v":2.0,"ewma":1.1081,"n":9,"full":false},{"id":"r4","date":"2026-08-10","v":2.0,"ewma":1.4343,"n":9,"full":false},{"id":"r5","date":"2026-08-12","v":1.0,"ewma":1.2919,"n":9,"full":false},{"id":"r6","date":"2026-08-14","v":0.0,"ewma":0.899,"n":9,"full":false},{"id":"r7","date":"2026-08-17","v":2.0,"ewma":1.2167,"n":9,"full":false},{"id":"r11","date":"2026-08-28","v":1.0,"ewma":1.1565,"n":9,"full":false},{"id":"r16","date":"2026-09-24","v":2.0,"ewma":1.3845,"n":9,"full":false}]},{"key":"putts_9","label":"Putts per 9 holes","unit":"num","better":"lower","tier":"A","group":null,"desc":"A count of putts, not putting skill: putt lengths are unknown and more greens hit means longer putts. Rounds where putts were entered on only some holes are left out.","headline":"25.4","detail":"9 rounds","points":[{"id":"r1","date":"2026-07-08","v":39.0,"ewma":39.0,"n":1.0,"full":false},{"id":"r2","date":"2026-07-15","v":31.0,"ewma":34.4286,"n":1.0,"full":false},{"id":"r3","date":"2026-08-05","v":24.0,"ewma":29.9189,"n":1.0,"full":false},{"id":"r4","date":"2026-08-10","v":24.0,"ewma":27.7543,"n":1.0,"full":false},{"id":"r5","date":"2026-08-12","v":22.0,"ewma":25.8681,"n":1.0,"full":false},{"id":"r6","date":"2026-08-14","v":24.0,"ewma":25.3,"n":1.0,"full":false},{"id":"r7","date":"2026-08-17","v":22.0,"ewma":24.3479,"n":1.0,"full":false},{"id":"r11","date":"2026-08-28","v":21.0,"ewma":23.4178,"n":1.0,"full":false},{"id":"r16","date":"2026-09-24","v":22.0,"ewma":23.0346,"n":1.0,"full":false}]},{"key":"to_green_9","label":"Reaching the green: strokes over regulation, per 9","unit":"num","better":"lower","tier":"A","group":"split","desc":"(Strokes − putts) − (par − 2 per hole), per 9 holes. With the next panel it adds up exactly to your score to par.","headline":"+17.3","detail":"9 rounds","points":[{"id":"r1","date":"2026-07-08","v":11.0,"ewma":11.0,"n":1.0,"full":false},{"id":"r2","date":"2026-07-15","v":10.0,"ewma":10.4286,"n":1.0,"full":false},{"id":"r3","date":"2026-08-05","v":15.0,"ewma":12.4054,"n":1.0,"full":false},{"id":"r4","date":"2026-08-10","v":17.0,"ewma":14.0857,"n":1.0,"full":false},{"id":"r5","date":"2026-08-12","v":17.0,"ewma":15.041,"n":1.0,"full":false},{"id":"r6","date":"2026-08-14","v":21.0,"ewma":16.8533,"n":1.0,"full":false},{"id":"r7","date":"2026-08-17","v":23.0,"ewma":18.6267,"n":1.0,"full":false},{"id":"r11","date":"2026-08-28","v":27.0,"ewma":20.9529,"n":1.0,"full":false},{"id":"r16","date":"2026-09-24","v":15.0,"ewma":19.3439,"n":1.0,"full":false}]},{"key":"putts_over_9","label":"Putts over two per hole, per 9","unit":"num","better":"lower","tier":"A","group":"split","desc":"Putts − 2 per hole, per 9 holes. Negative means fewer than two putts per hole on average.","headline":"+7.4","detail":"9 rounds","points":[{"id":"r1","date":"2026-07-08","v":21.0,"ewma":21.0,"n":1.0,"full":false},{"id":"r2","date":"2026-07-15","v":13.0,"ewma":16.4286,"n":1.0,"full":false},{"id":"r3","date":"2026-08-05","v":6.0,"ewma":11.9189,"n":1.0,"full":false},{"id":"r4","date":"2026-08-10","v":6.0,"ewma":9.7543,"n":1.0,"full":false},{"id":"r5","date":"2026-08-12","v":4.0,"ewma":7.8681,"n":1.0,"full":false},{"id":"r6","date":"2026-08-14","v":6.0,"ewma":7.3,"n":1.0,"full":false},{"id":"r7","date":"2026-08-17","v":4.0,"ewma":6.3479,"n":1.0,"full":false},{"id":"r11","date":"2026-08-28","v":3.0,"ewma":5.4178,"n":1.0,"full":false},{"id":"r16","date":"2026-09-24","v":4.0,"ewma":5.0346,"n":1.0,"full":false}]},{"key":"dbl_9","label":"Double bogey or worse per 9","unit":"num","better":"lower","tier":"A","group":null,"desc":"Holes finished two or more over par, per 9 holes.","headline":"7.7","detail":"16 rounds","points":[{"id":"r1","date":"2026-07-08","v":9.0,"ewma":9.0,"n":1.0,"full":false},{"id":"r2","date":"2026-07-15","v":6.0,"ewma":7.2857,"n":1.0,"full":false},{"id":"r3","date":"2026-08-05","v":6.0,"ewma":6.7297,"n":1.0,"full":false},{"id":"r4","date":"2026-08-10","v":7.0,"ewma":6.8286,"n":1.0,"full":false},{"id":"r5","date":"2026-08-12","v":5.0,"ewma":6.2292,"n":1.0,"full":false},{"id":"r6","date":"2026-08-14","v":7.0,"ewma":6.4636,"n":1.0,"full":false},{"id":"r7","date":"2026-08-17","v":9.0,"ewma":7.1954,"n":1.0,"full":false},{"id":"r8","date":"2026-08-18","v":8.0,"ewma":7.4189,"n":1.0,"full":false},{"id":"r9","date":"2026-08-20","v":8.5,"ewma":7.879,"n":2.0,"full":true},{"id":"r10","date":"2026-08-22","v":8.0,"ewma":7.9228,"n":2.0,"full":true},{"id":"r11","date":"2026-08-28","v":9.0,"ewma":8.1322,"n":1.0,"full":false},{"id":"r12","date":"2026-09-09","v":9.0,"ewma":8.3109,"n":1.0,"full":false},{"id":"r13","date":"2026-09-15","v":9.0,"ewma":8.4593,"n":1.0,"full":false},{"id":"r14","date":"2026-09-19","v":6.0,"ewma":7.9106,"n":1.0,"full":false},{"id":"r15","date":"2026-09-19","v":8.0,"ewma":7.9311,"n":1.0,"full":false},{"id":"r16","date":"2026-09-24","v":7.0,"ewma":7.7131,"n":1.0,"full":false}]},{"key":"triple_9","label":"Triple bogey or worse per 9","unit":"num","better":"lower","tier":"B","group":null,"desc":"Holes finished three or more over par, per 9 holes. When most holes are doubles, the triples are where the big numbers come from (needs the course's per-hole pars).","headline":"6.0","detail":"16 rounds","points":[{"id":"r1","date":"2026-07-08","v":8.0,"ewma":8.0,"n":1.0,"full":false},{"id":"r2","date":"2026-07-15","v":6.0,"ewma":6.8571,"n":1.0,"full":false},{"id":"r3","date":"2026-08-05","v":5.0,"ewma":6.0541,"n":1.0,"full":false},{"id":"r4","date":"2026-08-10","v":5.0,"ewma":5.6686,"n":1.0,"full":false},{"id":"r5","date":"2026-08-12","v":4.0,"ewma":5.1216,"n":1.0,"full":false},{"id":"r6","date":"2026-08-14","v":7.0,"ewma":5.6929,"n":1.0,"full":false},{"id":"r7","date":"2026-08-17","v":6.0,"ewma":5.7815,"n":1.0,"full":false},{"id":"r8","date":"2026-08-18","v":3.0,"ewma":5.0088,"n":1.0,"full":false},{"id":"r9","date":"2026-08-20","v":7.5,"ewma":6.0689,"n":2.0,"full":true},{"id":"r10","date":"2026-08-22","v":7.0,"ewma":6.406,"n":2.0,"full":true},{"id":"r11","date":"2026-08-28","v":8.0,"ewma":6.7159,"n":1.0,"full":false},{"id":"r12","date":"2026-09-09","v":8.0,"ewma":6.9802,"n":1.0,"full":false},{"id":"r13","date":"2026-09-15","v":7.0,"ewma":6.9845,"n":1.0,"full":false},{"id":"r14","date":"2026-09-19","v":5.0,"ewma":6.5418,"n":1.0,"full":false},{"id":"r15","date":"2026-09-19","v":4.0,"ewma":5.959,"n":1.0,"full":false},{"id":"r16","date":"2026-09-24","v":3.0,"ewma":5.2663,"n":1.0,"full":false}]},{"key":"par3_avg","label":"Par 3s: average to par","unit":"num","better":"lower","tier":"B","group":"partype","desc":"Average score relative to par on par 3s (needs the course's per-hole pars).","headline":"+2.4","detail":"38 holes · 16 rounds","points":[{"id":"r1","date":"2026-07-08","v":3.0,"ewma":3.0,"n":2,"full":false},{"id":"r2","date":"2026-07-15","v":1.5,"ewma":2.1429,"n":2,"full":false},{"id":"r3","date":"2026-08-05","v":3.0,"ewma":2.5135,"n":2,"full":false},{"id":"r4","date":"2026-08-10","v":2.5,"ewma":2.5086,"n":2,"full":false},{"id":"r5","date":"2026-08-12","v":2.0,"ewma":2.3419,"n":2,"full":false},{"id":"r6","date":"2026-08-14","v":2.0,"ewma":2.2379,"n":2,"full":false},{"id":"r7","date":"2026-08-17","v":3.0,"ewma":2.4578,"n":2,"full":false},{"id":"r8","date":"2026-08-18","v":1.0,"ewma":2.0528,"n":2,"full":false},{"id":"r9","date":"2026-08-20","v":2.2,"ewma":2.1236,"n":5,"full":true},{"id":"r10","date":"2026-08-22","v":2.25,"ewma":2.1664,"n":4,"full":true},{"id":"r11","date":"2026-08-28","v":3.0,"ewma":2.3201,"n":2,"full":false},{"id":"r12","date":"2026-09-09","v":3.0,"ewma":2.5032,"n":3,"full":false},{"id":"r13","date":"2026-09-15","v":3.5,"ewma":2.6958,"n":2,"full":false},{"id":"r14","date":"2026-09-19","v":1.5,"ewma":2.4509,"n":2,"full":false},{"id":"r15","date":"2026-09-19","v":2.5,"ewma":2.4614,"n":2,"full":false},{"id":"r16","date":"2026-09-24","v":2.0,"ewma":2.3588,"n":2,"full":false}]},{"key":"par4_avg","label":"Par 4s: average to par","unit":"num","better":"lower","tier":"B","group":"partype","desc":"Average score relative to par on par 4s.","headline":"+3.1","detail":"101 holes · 16 rounds","points":[{"id":"r1","date":"2026-07-08","v":3.5,"ewma":3.5,"n":6,"full":false},{"id":"r2","date":"2026-07-15","v":2.8333,"ewma":3.119,"n":6,"full":false},{"id":"r3","date":"2026-08-05","v":2.0,"ewma":2.6351,"n":6,"full":false},{"id":"r4","date":"2026-08-10","v":3.0,"ewma":2.7686,"n":6,"full":false},{"id":"r5","date":"2026-08-12","v":2.6667,"ewma":2.7352,"n":6,"full":false},{"id":"r6","date":"2026-08-14","v":3.6667,"ewma":3.0185,"n":6,"full":false},{"id":"r7","date":"2026-08-17","v":2.8333,"ewma":2.9651,"n":6,"full":false},{"id":"r8","date":"2026-08-18","v":2.6667,"ewma":2.8822,"n":6,"full":false},{"id":"r9","date":"2026-08-20","v":3.9,"ewma":3.2707,"n":10,"full":true},{"id":"r10","date":"2026-08-22","v":3.1,"ewma":3.2131,"n":10,"full":true},{"id":"r11","date":"2026-08-28","v":3.5,"ewma":3.2741,"n":6,"full":false},{"id":"r12","date":"2026-09-09","v":3.0,"ewma":3.2401,"n":3,"full":false},{"id":"r13","date":"2026-09-15","v":3.5,"ewma":3.3047,"n":6,"full":false},{"id":"r14","date":"2026-09-19","v":3.5,"ewma":3.3533,"n":6,"full":false},{"id":"r15","date":"2026-09-19","v":2.6667,"ewma":3.1822,"n":6,"full":false},{"id":"r16","date":"2026-09-24","v":2.3333,"ewma":2.9705,"n":6,"full":false}]},{"key":"par5_avg","label":"Par 5s: average to par","unit":"num","better":"lower","tier":"B","group":"partype","desc":"Average score relative to par on par 5s.","headline":"+2.8","detail":"23 holes · 16 rounds","points":[{"id":"r1","date":"2026-07-08","v":5.0,"ewma":5.0,"n":1,"full":false},{"id":"r2","date":"2026-07-15","v":3.0,"ewma":3.8571,"n":1,"full":false},{"id":"r3","date":"2026-08-05","v":3.0,"ewma":3.4865,"n":1,"full":false},{"id":"r4","date":"2026-08-10","v":0.0,"ewma":2.2114,"n":1,"full":false},{"id":"r5","date":"2026-08-12","v":1.0,"ewma":1.8143,"n":1,"full":false},{"id":"r6","date":"2026-08-14","v":1.0,"ewma":1.5667,"n":1,"full":false},{"id":"r7","date":"2026-08-17","v":4.0,"ewma":2.2687,"n":1,"full":false},{"id":"r8","date":"2026-08-18","v":4.0,"ewma":2.7497,"n":1,"full":false},{"id":"r9","date":"2026-08-20","v":3.6667,"ewma":3.2323,"n":3,"full":true},{"id":"r10","date":"2026-08-22","v":3.75,"ewma":3.4826,"n":4,"full":true},{"id":"r11","date":"2026-08-28","v":3.0,"ewma":3.4156,"n":1,"full":false},{"id":"r12","date":"2026-09-09","v":3.0,"ewma":3.2673,"n":3,"full":false},{"id":"r13","date":"2026-09-15","v":2.0,"ewma":3.0937,"n":1,"full":false},{"id":"r14","date":"2026-09-19","v":1.0,"ewma":2.7705,"n":1,"full":false},{"id":"r15","date":"2026-09-19","v":2.0,"ewma":2.639,"n":1,"full":false},{"id":"r16","date":"2026-09-24","v":1.0,"ewma":2.3351,"n":1,"full":false}]}],"identity":{"to_green":17.3333,"putts_over":7.4444,"to_par":24.7778,"rounds":9,"sentence":"Per 9 holes Shane averages +24.8 to par: +17.3 in strokes to reach the green beyond regulation and +7.4 in putts relative to two per hole (9 rounds with putts tracked on every hole)."},"clubs":{"distances":{"clubs":[{"club":"Driver","order":0,"n":30,"n_invalid":12,"n_after":23,"n_live":7,"median_live":214.3,"median":182.6,"q1":154.75,"q3":210.8,"min":119.5,"max":262.0,"shots":[{"d":156.8,"date":"2026-07-08","hole":1,"after":true},{"d":154.5,"date":"2026-07-08","hole":5,"after":true},{"d":222.0,"date":"2026-07-08","hole":9,"after":true},{"d":140.3,"date":"2026-07-15","hole":1,"after":true},{"d":164.1,"date":"2026-07-15","hole":5,"after":true},{"d":200.8,"date":"2026-07-15","hole":8,"after":true},{"d":180.8,"date":"2026-08-05","hole":1,"after":true},{"d":211.5,"date":"2026-08-05","hole":3,"after":true},{"d":119.5,"date":"2026-08-05","hole":4,"after":true},{"d":159.5,"date":"2026-08-05","hole":5,"after":true},{"d":132.0,"date":"2026-08-05","hole":6,"after":true},{"d":188.6,"date":"2026-08-05","hole":8,"after":true},{"d":208.4,"date":"2026-08-05","hole":9,"after":true},{"d":184.4,"date":"2026-08-10","hole":3,"after":true},{"d":159.9,"date":"2026-08-10","hole":4,"after":true},{"d":234.6,"date":"2026-08-10","hole":6,"after":true},{"d":211.2,"date":"2026-08-10","hole":8,"after":true},{"d":206.5,"date":"2026-08-10","hole":9,"after":true},{"d":155.2,"date":"2026-08-12","hole":3,"after":true},{"d":209.6,"date":"2026-08-12","hole":8,"after":true},{"d":128.7,"date":"2026-08-14","hole":1,"after":true},{"d":168.9,"date":"2026-08-14","hole":5,"after":true},{"d":147.2,"date":"2026-08-14","hole":6,"after":true},{"d":154.6,"date":"2026-08-17","hole":3,"after":false},{"d":185.6,"date":"2026-08-17","hole":4,"after":false},{"d":142.3,"date":"2026-08-17","hole":6,"after":false},{"d":221.1,"date":"2026-08-17","hole":8,"after":false},{"d":217.3,"date":"2026-08-18","hole":4,"after":false},{"d":262.0,"date":"2026-08-18","hole":6,"after":false},{"d":214.3,"date":"2026-08-18","hole":8,"after":false}]},{"club":"3W","order":13,"n":1,"n_invalid":2,"n_after":1,"n_live":0,"median_live":null,"median":84.4,"q1":84.4,"q3":84.4,"min":84.4,"max":84.4,"shots":[{"d":84.4,"date":"2026-08-14","hole":5,"after":true}]},{"club":"5H","order":35,"n":10,"n_invalid":0,"n_after":6,"n_live":4,"median_live":156.15,"median":156.15,"q1":133.7,"q3":193.275,"min":127.6,"max":244.4,"shots":[{"d":200.8,"date":"2026-08-10","hole":1,"after":true},{"d":244.4,"date":"2026-08-10","hole":5,"after":true},{"d":137.0,"date":"2026-08-10","hole":7,"after":true},{"d":212.5,"date":"2026-08-12","hole":1,"after":true},{"d":132.6,"date":"2026-08-12","hole":7,"after":true},{"d":130.6,"date":"2026-08-12","hole":9,"after":true},{"d":127.6,"date":"2026-08-17","hole":1,"after":false},{"d":152.0,"date":"2026-08-17","hole":9,"after":false},{"d":160.3,"date":"2026-08-18","hole":7,"after":false},{"d":170.7,"date":"2026-08-20","hole":1,"after":false}]},{"club":"6i","order":56,"n":4,"n_invalid":5,"n_after":2,"n_live":2,"median_live":158.15,"median":178.6,"q1":167.975,"q3":184.05,"min":138.5,"max":198.0,"shots":[{"d":179.4,"date":"2026-08-05","hole":6,"after":true},{"d":198.0,"date":"2026-08-12","hole":5,"after":true},{"d":138.5,"date":"2026-08-17","hole":5,"after":false},{"d":177.8,"date":"2026-08-18","hole":5,"after":false}]},{"club":"7i","order":57,"n":6,"n_invalid":3,"n_after":5,"n_live":1,"median_live":114.1,"median":121.05,"q1":114.725,"q3":137.35,"min":74.8,"max":159.3,"shots":[{"d":141.3,"date":"2026-07-08","hole":8,"after":true},{"d":159.3,"date":"2026-08-05","hole":3,"after":true},{"d":125.5,"date":"2026-08-12","hole":5,"after":true},{"d":116.6,"date":"2026-08-12","hole":9,"after":true},{"d":74.8,"date":"2026-08-14","hole":8,"after":true},{"d":114.1,"date":"2026-08-18","hole":5,"after":false}]},{"club":"8i","order":58,"n":4,"n_invalid":0,"n_after":3,"n_live":1,"median_live":135.1,"median":104.35,"q1":73.225,"q3":142.025,"min":72.1,"max":162.8,"shots":[{"d":72.1,"date":"2026-08-10","hole":2,"after":true},{"d":162.8,"date":"2026-08-12","hole":2,"after":true},{"d":73.6,"date":"2026-08-14","hole":6,"after":true},{"d":135.1,"date":"2026-08-17","hole":1,"after":false}]},{"club":"9i","order":59,"n":20,"n_invalid":10,"n_after":20,"n_live":0,"median_live":null,"median":69.85,"q1":61.375,"q3":111.75,"min":25.3,"max":147.4,"shots":[{"d":66.2,"date":"2026-07-08","hole":1,"after":true},{"d":62.8,"date":"2026-07-08","hole":5,"after":true},{"d":54.9,"date":"2026-07-08","hole":5,"after":true},{"d":125.6,"date":"2026-07-15","hole":1,"after":true},{"d":73.2,"date":"2026-07-15","hole":4,"after":true},{"d":72.3,"date":"2026-07-15","hole":5,"after":true},{"d":57.0,"date":"2026-07-15","hole":8,"after":true},{"d":124.1,"date":"2026-08-05","hole":1,"after":true},{"d":135.1,"date":"2026-08-05","hole":2,"after":true},{"d":67.4,"date":"2026-08-05","hole":4,"after":true},{"d":121.2,"date":"2026-08-05","hole":4,"after":true},{"d":147.4,"date":"2026-08-05","hole":5,"after":true},{"d":57.7,"date":"2026-08-05","hole":7,"after":true},{"d":103.6,"date":"2026-08-05","hole":8,"after":true},{"d":106.1,"date":"2026-08-10","hole":3,"after":true},{"d":108.6,"date":"2026-08-10","hole":4,"after":true},{"d":25.3,"date":"2026-08-12","hole":3,"after":true},{"d":58.3,"date":"2026-08-12","hole":3,"after":true},{"d":64.4,"date":"2026-08-14","hole":1,"after":true},{"d":62.4,"date":"2026-08-14","hole":2,"after":true}]},{"club":"PW","order":74.6,"n":22,"n_invalid":3,"n_after":21,"n_live":1,"median_live":102.3,"median":52.0,"q1":22.25,"q3":64.9,"min":9.9,"max":109.4,"shots":[{"d":89.7,"date":"2026-08-10","hole":1,"after":true},{"d":62.5,"date":"2026-08-10","hole":2,"after":true},{"d":23.0,"date":"2026-08-10","hole":2,"after":true},{"d":13.8,"date":"2026-08-10","hole":3,"after":true},{"d":81.8,"date":"2026-08-10","hole":4,"after":true},{"d":46.0,"date":"2026-08-10","hole":5,"after":true},{"d":15.5,"date":"2026-08-10","hole":5,"after":true},{"d":57.3,"date":"2026-08-10","hole":6,"after":true},{"d":60.6,"date":"2026-08-10","hole":7,"after":true},{"d":22.0,"date":"2026-08-10","hole":7,"after":true},{"d":81.1,"date":"2026-08-10","hole":8,"after":true},{"d":26.2,"date":"2026-08-10","hole":8,"after":true},{"d":56.3,"date":"2026-08-10","hole":9,"after":true},{"d":56.5,"date":"2026-08-12","hole":1,"after":true},{"d":65.7,"date":"2026-08-12","hole":3,"after":true},{"d":40.5,"date":"2026-08-12","hole":5,"after":true},{"d":47.7,"date":"2026-08-12","hole":7,"after":true},{"d":12.2,"date":"2026-08-12","hole":8,"after":true},{"d":109.4,"date":"2026-08-12","hole":8,"after":true},{"d":9.9,"date":"2026-08-12","hole":9,"after":true},{"d":12.2,"date":"2026-08-12","hole":9,"after":true},{"d":102.3,"date":"2026-08-17","hole":9,"after":false}]},{"club":"SW","order":75.6,"n":3,"n_invalid":3,"n_after":3,"n_live":0,"median_live":null,"median":19.7,"q1":17.55,"q3":23.9,"min":15.4,"max":28.1,"shots":[{"d":15.4,"date":"2026-08-10","hole":4,"after":true},{"d":19.7,"date":"2026-08-10","hole":6,"after":true},{"d":28.1,"date":"2026-08-10","hole":9,"after":true}]}],"invalid":[{"d":206.7,"date":"2026-07-08","hole":3,"after":true,"reason":"same distance as another shot on this hole (an app default, not a measurement)","club":"Driver"},{"d":166.5,"date":"2026-07-08","hole":4,"after":true,"reason":"same distance as another shot on this hole (an app default, not a measurement)","club":"Driver"},{"d":284.2,"date":"2026-07-08","hole":6,"after":true,"reason":"same distance as another shot on this hole (an app default, not a measurement)","club":"Driver"},{"d":149.7,"date":"2026-07-08","hole":8,"after":true,"reason":"same distance as another shot on this hole (an app default, not a measurement)","club":"Driver"},{"d":206.7,"date":"2026-07-15","hole":3,"after":true,"reason":"same distance as another shot on this hole (an app default, not a measurement)","club":"Driver"},{"d":166.5,"date":"2026-07-15","hole":4,"after":true,"reason":"same distance as another shot on this hole (an app default, not a measurement)","club":"Driver"},{"d":284.2,"date":"2026-07-15","hole":6,"after":true,"reason":"same distance as another shot on this hole (an app default, not a measurement)","club":"Driver"},{"d":115.7,"date":"2026-07-15","hole":9,"after":true,"reason":"same distance as another shot on this hole (an app default, not a measurement)","club":"Driver"},{"d":206.7,"date":"2026-08-14","hole":3,"after":true,"reason":"same distance as another shot on this hole (an app default, not a measurement)","club":"Driver"},{"d":166.5,"date":"2026-08-14","hole":4,"after":true,"reason":"same distance as another shot on this hole (an app default, not a measurement)","club":"Driver"},{"d":149.7,"date":"2026-08-14","hole":8,"after":true,"reason":"same distance as another shot on this hole (an app default, not a measurement)","club":"Driver"},{"d":115.7,"date":"2026-08-14","hole":9,"after":true,"reason":"same distance as another shot on this hole (an app default, not a measurement)","club":"Driver"},{"d":83.2,"date":"2026-08-14","hole":4,"after":true,"reason":"same distance as another shot on this hole (an app default, not a measurement)","club":"3W"},{"d":84.4,"date":"2026-08-14","hole":7,"after":true,"reason":"same distance as another shot on this hole (an app default, not a measurement)","club":"3W"},{"d":83.2,"date":"2026-07-08","hole":4,"after":true,"reason":"same distance as another shot on this hole (an app default, not a measurement)","club":"6i"},{"d":84.4,"date":"2026-07-08","hole":7,"after":true,"reason":"same distance as another shot on this hole (an app default, not a measurement)","club":"6i"},{"d":83.2,"date":"2026-07-15","hole":4,"after":true,"reason":"same distance as another shot on this hole (an app default, not a measurement)","club":"6i"},{"d":84.4,"date":"2026-07-15","hole":7,"after":true,"reason":"same distance as another shot on this hole (an app default, not a measurement)","club":"6i"},{"d":84.4,"date":"2026-08-05","hole":7,"after":true,"reason":"same distance as another shot on this hole (an app default, not a measurement)","club":"6i"},{"d":103.4,"date":"2026-07-08","hole":3,"after":true,"reason":"same distance as another shot on this hole (an app default, not a measurement)","club":"7i"},{"d":103.4,"date":"2026-07-15","hole":3,"after":true,"reason":"same distance as another shot on this hole (an app default, not a measurement)","club":"7i"},{"d":103.4,"date":"2026-08-14","hole":3,"after":true,"reason":"same distance as another shot on this hole (an app default, not a measurement)","club":"7i"},{"d":112.3,"date":"2026-07-08","hole":2,"after":true,"reason":"same distance as another shot on this hole (an app default, not a measurement)","club":"9i"},{"d":51.7,"date":"2026-07-08","hole":3,"after":true,"reason":"same distance as another shot on this hole (an app default, not a measurement)","club":"9i"},{"d":72.8,"date":"2026-07-08","hole":7,"after":true,"reason":"same distance as another shot on this hole (an app default, not a measurement)","club":"9i"},{"d":112.3,"date":"2026-07-15","hole":2,"after":true,"reason":"same distance as another shot on this hole (an app default, not a measurement)","club":"9i"},{"d":51.7,"date":"2026-07-15","hole":3,"after":true,"reason":"same distance as another shot on this hole (an app default, not a measurement)","club":"9i"},{"d":72.8,"date":"2026-07-15","hole":7,"after":true,"reason":"same distance as another shot on this hole (an app default, not a measurement)","club":"9i"},{"d":57.9,"date":"2026-07-15","hole":9,"after":true,"reason":"same distance as another shot on this hole (an app default, not a measurement)","club":"9i"},{"d":51.7,"date":"2026-08-14","hole":3,"after":true,"reason":"same distance as another shot on this hole (an app default, not a measurement)","club":"9i"},{"d":72.8,"date":"2026-08-14","hole":7,"after":true,"reason":"same distance as another shot on this hole (an app default, not a measurement)","club":"9i"},{"d":57.9,"date":"2026-08-14","hole":9,"after":true,"reason":"same distance as another shot on this hole (an app default, not a measurement)","club":"9i"},{"d":4.9,"date":"2026-08-10","hole":9,"after":true,"reason":"under 5 yards","club":"PW"},{"d":1.9,"date":"2026-08-12","hole":8,"after":true,"reason":"under 5 yards","club":"PW"},{"d":0.0,"date":"2026-08-17","hole":9,"after":false,"reason":"under 5 yards","club":"PW"},{"d":1.7,"date":"2026-08-10","hole":8,"after":true,"reason":"under 5 yards","club":"SW"},{"d":1.9,"date":"2026-08-10","hole":8,"after":true,"reason":"under 5 yards","club":"SW"},{"d":3.1,"date":"2026-08-10","hole":9,"after":true,"reason":"under 5 yards","club":"SW"}],"n_shots":150,"n_putts":12,"n_valid":100,"n_after":84,"min_yards":5.0,"max_yards":400.0},"coverage":{"rounds_total":16,"rounds_with_shots":9,"rounds_logged_after":6,"holes_played":90,"holes_with_shots":65,"by_hole":[{"hole":1,"played":9,"rounds":8,"shots":17},{"hole":2,"played":9,"rounds":6,"shots":9},{"hole":3,"played":9,"rounds":7,"shots":19},{"hole":4,"played":9,"rounds":7,"shots":17},{"hole":5,"played":9,"rounds":8,"shots":19},{"hole":6,"played":9,"rounds":7,"shots":12},{"hole":7,"played":9,"rounds":7,"shots":17},{"hole":8,"played":9,"rounds":8,"shots":20},{"hole":9,"played":9,"rounds":7,"shots":20},{"hole":10,"played":1,"rounds":0,"shots":0},{"hole":11,"played":1,"rounds":0,"shots":0},{"hole":12,"played":1,"rounds":0,"shots":0},{"hole":13,"played":1,"rounds":0,"shots":0},{"hole":14,"played":1,"rounds":0,"shots":0},{"hole":15,"played":1,"rounds":0,"shots":0},{"hole":16,"played":1,"rounds":0,"shots":0},{"hole":17,"played":1,"rounds":0,"shots":0},{"hole":18,"played":1,"rounds":0,"shots":0}],"rounds":[{"id":"r9","date":"2026-08-20","course":"Oyster Bay Golf Links","holes_played":18,"holes_with_shots":1,"shots":1,"putts":0,"logged":"unknown"},{"id":"r8","date":"2026-08-18","course":"Southborough Golf Club","holes_played":9,"holes_with_shots":5,"shots":6,"putts":0,"logged":"live"},{"id":"r7","date":"2026-08-17","course":"Southborough Golf Club","holes_played":9,"holes_with_shots":7,"shots":10,"putts":0,"logged":"live"},{"id":"r6","date":"2026-08-14","course":"Southborough Golf Club","holes_played":9,"holes_with_shots":9,"shots":18,"putts":0,"logged":"after"},{"id":"r5","date":"2026-08-12","course":"Southborough Golf Club","holes_played":9,"holes_with_shots":7,"shots":24,"putts":4,"logged":"after"},{"id":"r4","date":"2026-08-10","course":"Southborough Golf Club","holes_played":9,"holes_with_shots":9,"shots":39,"putts":8,"logged":"after"},{"id":"r3","date":"2026-08-05","course":"Southborough Golf Club","holes_played":9,"holes_with_shots":9,"shots":17,"putts":0,"logged":"after"},{"id":"r2","date":"2026-07-15","course":"Southborough Golf Club","holes_played":9,"holes_with_shots":9,"shots":18,"putts":0,"logged":"after"},{"id":"r1","date":"2026-07-08","course":"Southborough Golf Club","holes_played":9,"holes_with_shots":9,"shots":17,"putts":0,"logged":"after"}]}},"holes":{"course_key":"southborough","course":"Southborough Golf Club","rounds":13,"last_date":"2026-09-24","holes":[{"hole":1,"par":4,"si":3,"n":13,"last":4,"last_date":"2026-09-24","avg":2.6923},{"hole":2,"par":3,"si":9,"n":13,"last":2,"last_date":"2026-09-24","avg":2.6923},{"hole":3,"par":5,"si":5,"n":13,"last":1,"last_date":"2026-09-24","avg":2.3077},{"hole":4,"par":4,"si":2,"n":13,"last":3,"last_date":"2026-09-24","avg":3.1538},{"hole":5,"par":4,"si":1,"n":13,"last":2,"last_date":"2026-09-24","avg":3.0769},{"hole":6,"par":4,"si":8,"n":13,"last":2,"last_date":"2026-09-24","avg":2.9231},{"hole":7,"par":3,"si":6,"n":13,"last":2,"last_date":"2026-09-24","avg":2.0},{"hole":8,"par":4,"si":7,"n":13,"last":0,"last_date":"2026-09-24","avg":2.7692},{"hole":9,"par":4,"si":4,"n":13,"last":3,"last_date":"2026-09-24","avg":3.2308}]},"views":{"c1":{"n":13,"hero":{"verdict":"Trend now +23.8 per 9 holes (80% noise band +21.8 to +25.8). Three weeks earlier (Aug 28) it was +25.7: 1.9 better now. Its best stretch: +22.9 around Aug 12.","points":[{"id":"r1","date":"2026-07-08","y":32.0,"holes":9,"gross":67,"to_par":32,"par":35,"course":"Southborough Golf Club","halves":null},{"id":"r2","date":"2026-07-15","y":23.0,"holes":9,"gross":58,"to_par":23,"par":35,"course":"Southborough Golf Club","halves":null},{"id":"r3","date":"2026-08-05","y":21.0,"holes":9,"gross":56,"to_par":21,"par":35,"course":"Southborough Golf Club","halves":null},{"id":"r4","date":"2026-08-10","y":23.0,"holes":9,"gross":58,"to_par":23,"par":35,"course":"Southborough Golf Club","halves":null},{"id":"r5","date":"2026-08-12","y":21.0,"holes":9,"gross":56,"to_par":21,"par":35,"course":"Southborough Golf Club","halves":null},{"id":"r6","date":"2026-08-14","y":27.0,"holes":9,"gross":62,"to_par":27,"par":35,"course":"Southborough Golf Club","halves":null},{"id":"r7","date":"2026-08-17","y":27.0,"holes":9,"gross":62,"to_par":27,"par":35,"course":"Southborough Golf Club","halves":null},{"id":"r8","date":"2026-08-18","y":22.0,"holes":9,"gross":57,"to_par":22,"par":35,"course":"Southborough Golf Club","halves":null},{"id":"r11","date":"2026-08-28","y":30.0,"holes":9,"gross":65,"to_par":30,"par":35,"course":"Southborough Golf Club","halves":null},{"id":"r13","date":"2026-09-15","y":30.0,"holes":9,"gross":65,"to_par":30,"par":35,"course":"Southborough Golf Club","halves":null},{"id":"r14","date":"2026-09-19","y":25.0,"holes":9,"gross":60,"to_par":25,"par":35,"course":"Southborough Golf Club","halves":null},{"id":"r15","date":"2026-09-19","y":23.0,"holes":9,"gross":58,"to_par":23,"par":35,"course":"Southborough Golf Club","halves":null},{"id":"r16","date":"2026-09-24","y":19.0,"holes":9,"gross":54,"to_par":19,"par":35,"course":"Southborough Golf Club","halves":null}],"trend":[{"date":"2026-07-08","y":32.0,"lo":26.8247,"hi":37.1753},{"date":"2026-07-15","y":26.8571,"lo":23.1605,"hi":30.5538},{"date":"2026-08-05","y":24.3243,"lo":21.2567,"hi":27.392},{"date":"2026-08-10","y":23.84,"lo":21.1256,"hi":26.5544},{"date":"2026-08-12","y":22.9091,"lo":20.4177,"hi":25.4005},{"date":"2026-08-14","y":24.1533,"lo":21.8117,"hi":26.4948},{"date":"2026-08-17","y":24.9746,"lo":22.7374,"hi":27.2118},{"date":"2026-08-18","y":24.1482,"lo":21.9854,"hi":26.311},{"date":"2026-08-28","y":25.7299,"lo":23.621,"hi":27.8388},{"date":"2026-09-15","y":26.8611,"lo":24.7916,"hi":28.9306},{"date":"2026-09-19","y":26.3753,"lo":24.3348,"hi":28.4158},{"date":"2026-09-19","y":25.5039,"lo":23.4849,"hi":27.5229},{"date":"2026-09-24","y":23.8384,"lo":21.8353,"hi":25.8415}],"missing":0,"missing_note":"","sigma":4.0383},"diff":{"points":[{"id":"r1","date":"2026-07-08","holes":9,"ours":62.3,"nine9":34.9,"rated":true,"kind":"nine_hole_scaled","b18":41.8,"course":"Southborough Golf Club","to_par":32},{"id":"r2","date":"2026-07-15","holes":9,"ours":53.3,"nine9":25.9,"rated":true,"kind":"nine_hole_scaled","b18":51.8,"course":"Southborough Golf Club","to_par":23},{"id":"r3","date":"2026-08-05","holes":9,"ours":51.3,"nine9":23.9,"rated":true,"kind":"nine_hole_scaled","b18":47.8,"course":"Southborough Golf Club","to_par":21},{"id":"r4","date":"2026-08-10","holes":9,"ours":53.3,"nine9":25.9,"rated":true,"kind":"nine_hole_scaled","b18":51.8,"course":"Southborough Golf Club","to_par":23},{"id":"r5","date":"2026-08-12","holes":9,"ours":51.3,"nine9":23.9,"rated":true,"kind":"nine_hole_scaled","b18":47.8,"course":"Southborough Golf Club","to_par":21},{"id":"r6","date":"2026-08-14","holes":9,"ours":57.3,"nine9":29.9,"rated":true,"kind":"nine_hole_scaled","b18":59.8,"course":"Southborough Golf Club","to_par":27},{"id":"r7","date":"2026-08-17","holes":9,"ours":57.3,"nine9":29.9,"rated":true,"kind":"nine_hole_scaled","b18":59.8,"course":"Southborough Golf Club","to_par":27},{"id":"r8","date":"2026-08-18","holes":9,"ours":52.8,"nine9":24.9,"rated":true,"kind":"nine_hole_scaled","b18":49.8,"course":"Southborough Golf Club","to_par":22},{"id":"r11","date":"2026-08-28","holes":9,"ours":60.7,"nine9":32.9,"rated":true,"kind":"nine_hole_scaled","b18":65.8,"course":"Southborough Golf Club","to_par":30},{"id":"r13","date":"2026-09-15","holes":9,"ours":60.9,"nine9":32.9,"rated":true,"kind":"nine_hole_scaled","b18":65.8,"course":"Southborough Golf Club","to_par":30},{"id":"r14","date":"2026-09-19","holes":9,"ours":55.9,"nine9":27.9,"rated":true,"kind":"nine_hole_scaled","b18":55.8,"course":"Southborough Golf Club","to_par":25},{"id":"r15","date":"2026-09-19","holes":9,"ours":53.9,"nine9":25.9,"rated":true,"kind":"nine_hole_scaled","b18":51.8,"course":"Southborough Golf Club","to_par":23},{"id":"r16","date":"2026-09-24","holes":9,"ours":50.1,"nine9":21.9,"rated":true,"kind":"nine_hole_scaled","b18":43.8,"course":"Southborough Golf Club","to_par":19}],"hi":[{"date":"2026-08-14","hi":50.3},{"date":"2026-08-17","hi":51.3},{"date":"2026-08-18","hi":51.3},{"date":"2026-08-20","hi":51.8},{"date":"2026-08-22","hi":51.1},{"date":"2026-08-28","hi":51.1},{"date":"2026-09-09","hi":51.5},{"date":"2026-09-15","hi":51.5},{"date":"2026-09-19","hi":51.5},{"date":"2026-09-19","hi":51.9},{"date":"2026-09-24","hi":51.2}],"n_ours":13,"n_18b":13,"note":""},"lessons":{"sigma":8.0766,"sigma_n":13,"sigma_basis":"all rounds (9-hole doubled)","sigma_mssd":6.6207,"n_before":5,"n_after":5,"learning_window_days":14,"mde_n":14.3026,"mde_sentence":"With a round-to-round spread of σ≈8.1 differential points, a change must be about 14.3 differential points (roughly 7.2 strokes per 9 holes) to stand out with 5 rounds each side (about 10.1 with 10, 7.2 with 20).","unit":"differential points","strokes_per_unit_9":0.5,"lessons":[],"caveats":["These are before\/after descriptions, not causal estimates: practice, weather, courses, tees, form and luck all change too.","Regression to the mean: lessons often follow a bad stretch, and scores usually recover toward average without any help. That can look like a 2-stroke gain when nothing changed.","Equipment changed alongside a lesson cannot be separated from it.","Seasonality, course and tee mix, and playing conditions (PCC is not applied) all add noise.","Intervals are percentile bootstraps over only a few rounds; they are narrower than they should be at this sample size."],"method":"Mean outcome of the rounds before each lesson vs the rounds after a 14-day learning window; 9-hole rounds count half. Intervals are percentile bootstraps over rounds (display only)."},"multiples":[{"key":"fir_pct","label":"Fairways hit","unit":"pct","better":"higher","tier":"A","group":null,"desc":"Share of par-4 and par-5 tee shots that finished in the fairway.","headline":"32% (95% CI 18%–51%)","detail":"9 of 28 · 4 rounds","points":[{"id":"r1","date":"2026-07-08","v":0.2857,"ewma":0.2857,"n":7,"full":false},{"id":"r2","date":"2026-07-15","v":0.4286,"ewma":0.3673,"n":7,"full":false},{"id":"r3","date":"2026-08-05","v":0.2857,"ewma":0.332,"n":7,"full":false},{"id":"r6","date":"2026-08-14","v":0.2857,"ewma":0.3151,"n":7,"full":false}]},{"key":"gir_9","label":"Greens in regulation per 9","unit":"num","better":"higher","tier":"A","group":null,"desc":"Greens reached in par − 2 strokes or fewer, per 9 holes (9 would be every green).","headline":"1.2 (95% CI 0.7–2.0)","detail":"11 of 81 greens · 9 rounds","points":[{"id":"r1","date":"2026-07-08","v":1.0,"ewma":1.0,"n":9,"full":false},{"id":"r2","date":"2026-07-15","v":0.0,"ewma":0.4286,"n":9,"full":false},{"id":"r3","date":"2026-08-05","v":2.0,"ewma":1.1081,"n":9,"full":false},{"id":"r4","date":"2026-08-10","v":2.0,"ewma":1.4343,"n":9,"full":false},{"id":"r5","date":"2026-08-12","v":1.0,"ewma":1.2919,"n":9,"full":false},{"id":"r6","date":"2026-08-14","v":0.0,"ewma":0.899,"n":9,"full":false},{"id":"r7","date":"2026-08-17","v":2.0,"ewma":1.2167,"n":9,"full":false},{"id":"r11","date":"2026-08-28","v":1.0,"ewma":1.1565,"n":9,"full":false},{"id":"r16","date":"2026-09-24","v":2.0,"ewma":1.3845,"n":9,"full":false}]},{"key":"putts_9","label":"Putts per 9 holes","unit":"num","better":"lower","tier":"A","group":null,"desc":"A count of putts, not putting skill: putt lengths are unknown and more greens hit means longer putts. Rounds where putts were entered on only some holes are left out.","headline":"25.4","detail":"9 rounds","points":[{"id":"r1","date":"2026-07-08","v":39.0,"ewma":39.0,"n":1.0,"full":false},{"id":"r2","date":"2026-07-15","v":31.0,"ewma":34.4286,"n":1.0,"full":false},{"id":"r3","date":"2026-08-05","v":24.0,"ewma":29.9189,"n":1.0,"full":false},{"id":"r4","date":"2026-08-10","v":24.0,"ewma":27.7543,"n":1.0,"full":false},{"id":"r5","date":"2026-08-12","v":22.0,"ewma":25.8681,"n":1.0,"full":false},{"id":"r6","date":"2026-08-14","v":24.0,"ewma":25.3,"n":1.0,"full":false},{"id":"r7","date":"2026-08-17","v":22.0,"ewma":24.3479,"n":1.0,"full":false},{"id":"r11","date":"2026-08-28","v":21.0,"ewma":23.4178,"n":1.0,"full":false},{"id":"r16","date":"2026-09-24","v":22.0,"ewma":23.0346,"n":1.0,"full":false}]},{"key":"to_green_9","label":"Reaching the green: strokes over regulation, per 9","unit":"num","better":"lower","tier":"A","group":"split","desc":"(Strokes − putts) − (par − 2 per hole), per 9 holes. With the next panel it adds up exactly to your score to par.","headline":"+17.3","detail":"9 rounds","points":[{"id":"r1","date":"2026-07-08","v":11.0,"ewma":11.0,"n":1.0,"full":false},{"id":"r2","date":"2026-07-15","v":10.0,"ewma":10.4286,"n":1.0,"full":false},{"id":"r3","date":"2026-08-05","v":15.0,"ewma":12.4054,"n":1.0,"full":false},{"id":"r4","date":"2026-08-10","v":17.0,"ewma":14.0857,"n":1.0,"full":false},{"id":"r5","date":"2026-08-12","v":17.0,"ewma":15.041,"n":1.0,"full":false},{"id":"r6","date":"2026-08-14","v":21.0,"ewma":16.8533,"n":1.0,"full":false},{"id":"r7","date":"2026-08-17","v":23.0,"ewma":18.6267,"n":1.0,"full":false},{"id":"r11","date":"2026-08-28","v":27.0,"ewma":20.9529,"n":1.0,"full":false},{"id":"r16","date":"2026-09-24","v":15.0,"ewma":19.3439,"n":1.0,"full":false}]},{"key":"putts_over_9","label":"Putts over two per hole, per 9","unit":"num","better":"lower","tier":"A","group":"split","desc":"Putts − 2 per hole, per 9 holes. Negative means fewer than two putts per hole on average.","headline":"+7.4","detail":"9 rounds","points":[{"id":"r1","date":"2026-07-08","v":21.0,"ewma":21.0,"n":1.0,"full":false},{"id":"r2","date":"2026-07-15","v":13.0,"ewma":16.4286,"n":1.0,"full":false},{"id":"r3","date":"2026-08-05","v":6.0,"ewma":11.9189,"n":1.0,"full":false},{"id":"r4","date":"2026-08-10","v":6.0,"ewma":9.7543,"n":1.0,"full":false},{"id":"r5","date":"2026-08-12","v":4.0,"ewma":7.8681,"n":1.0,"full":false},{"id":"r6","date":"2026-08-14","v":6.0,"ewma":7.3,"n":1.0,"full":false},{"id":"r7","date":"2026-08-17","v":4.0,"ewma":6.3479,"n":1.0,"full":false},{"id":"r11","date":"2026-08-28","v":3.0,"ewma":5.4178,"n":1.0,"full":false},{"id":"r16","date":"2026-09-24","v":4.0,"ewma":5.0346,"n":1.0,"full":false}]},{"key":"dbl_9","label":"Double bogey or worse per 9","unit":"num","better":"lower","tier":"A","group":null,"desc":"Holes finished two or more over par, per 9 holes.","headline":"7.4","detail":"13 rounds","points":[{"id":"r1","date":"2026-07-08","v":9.0,"ewma":9.0,"n":1.0,"full":false},{"id":"r2","date":"2026-07-15","v":6.0,"ewma":7.2857,"n":1.0,"full":false},{"id":"r3","date":"2026-08-05","v":6.0,"ewma":6.7297,"n":1.0,"full":false},{"id":"r4","date":"2026-08-10","v":7.0,"ewma":6.8286,"n":1.0,"full":false},{"id":"r5","date":"2026-08-12","v":5.0,"ewma":6.2292,"n":1.0,"full":false},{"id":"r6","date":"2026-08-14","v":7.0,"ewma":6.4636,"n":1.0,"full":false},{"id":"r7","date":"2026-08-17","v":9.0,"ewma":7.1954,"n":1.0,"full":false},{"id":"r8","date":"2026-08-18","v":8.0,"ewma":7.4189,"n":1.0,"full":false},{"id":"r11","date":"2026-08-28","v":9.0,"ewma":7.8463,"n":1.0,"full":false},{"id":"r13","date":"2026-09-15","v":9.0,"ewma":8.1519,"n":1.0,"full":false},{"id":"r14","date":"2026-09-19","v":6.0,"ewma":7.5902,"n":1.0,"full":false},{"id":"r15","date":"2026-09-19","v":8.0,"ewma":7.696,"n":1.0,"full":false},{"id":"r16","date":"2026-09-24","v":7.0,"ewma":7.5178,"n":1.0,"full":false}]},{"key":"triple_9","label":"Triple bogey or worse per 9","unit":"num","better":"lower","tier":"B","group":null,"desc":"Holes finished three or more over par, per 9 holes. When most holes are doubles, the triples are where the big numbers come from (needs the course's per-hole pars).","headline":"5.5","detail":"13 rounds","points":[{"id":"r1","date":"2026-07-08","v":8.0,"ewma":8.0,"n":1.0,"full":false},{"id":"r2","date":"2026-07-15","v":6.0,"ewma":6.8571,"n":1.0,"full":false},{"id":"r3","date":"2026-08-05","v":5.0,"ewma":6.0541,"n":1.0,"full":false},{"id":"r4","date":"2026-08-10","v":5.0,"ewma":5.6686,"n":1.0,"full":false},{"id":"r5","date":"2026-08-12","v":4.0,"ewma":5.1216,"n":1.0,"full":false},{"id":"r6","date":"2026-08-14","v":7.0,"ewma":5.6929,"n":1.0,"full":false},{"id":"r7","date":"2026-08-17","v":6.0,"ewma":5.7815,"n":1.0,"full":false},{"id":"r8","date":"2026-08-18","v":3.0,"ewma":5.0088,"n":1.0,"full":false},{"id":"r11","date":"2026-08-28","v":8.0,"ewma":5.8173,"n":1.0,"full":false},{"id":"r13","date":"2026-09-15","v":7.0,"ewma":6.1306,"n":1.0,"full":false},{"id":"r14","date":"2026-09-19","v":5.0,"ewma":5.8355,"n":1.0,"full":false},{"id":"r15","date":"2026-09-19","v":4.0,"ewma":5.3616,"n":1.0,"full":false},{"id":"r16","date":"2026-09-24","v":3.0,"ewma":4.7568,"n":1.0,"full":false}]},{"key":"par3_avg","label":"Par 3s: average to par","unit":"num","better":"lower","tier":"B","group":"partype","desc":"Average score relative to par on par 3s (needs the course's per-hole pars).","headline":"+2.3","detail":"26 holes · 13 rounds","points":[{"id":"r1","date":"2026-07-08","v":3.0,"ewma":3.0,"n":2,"full":false},{"id":"r2","date":"2026-07-15","v":1.5,"ewma":2.1429,"n":2,"full":false},{"id":"r3","date":"2026-08-05","v":3.0,"ewma":2.5135,"n":2,"full":false},{"id":"r4","date":"2026-08-10","v":2.5,"ewma":2.5086,"n":2,"full":false},{"id":"r5","date":"2026-08-12","v":2.0,"ewma":2.3419,"n":2,"full":false},{"id":"r6","date":"2026-08-14","v":2.0,"ewma":2.2379,"n":2,"full":false},{"id":"r7","date":"2026-08-17","v":3.0,"ewma":2.4578,"n":2,"full":false},{"id":"r8","date":"2026-08-18","v":1.0,"ewma":2.0528,"n":2,"full":false},{"id":"r11","date":"2026-08-28","v":3.0,"ewma":2.3088,"n":2,"full":false},{"id":"r13","date":"2026-09-15","v":3.5,"ewma":2.6244,"n":2,"full":false},{"id":"r14","date":"2026-09-19","v":1.5,"ewma":2.3309,"n":2,"full":false},{"id":"r15","date":"2026-09-19","v":2.5,"ewma":2.3746,"n":2,"full":false},{"id":"r16","date":"2026-09-24","v":2.0,"ewma":2.2786,"n":2,"full":false}]},{"key":"par4_avg","label":"Par 4s: average to par","unit":"num","better":"lower","tier":"B","group":"partype","desc":"Average score relative to par on par 4s.","headline":"+3.0","detail":"78 holes · 13 rounds","points":[{"id":"r1","date":"2026-07-08","v":3.5,"ewma":3.5,"n":6,"full":false},{"id":"r2","date":"2026-07-15","v":2.8333,"ewma":3.119,"n":6,"full":false},{"id":"r3","date":"2026-08-05","v":2.0,"ewma":2.6351,"n":6,"full":false},{"id":"r4","date":"2026-08-10","v":3.0,"ewma":2.7686,"n":6,"full":false},{"id":"r5","date":"2026-08-12","v":2.6667,"ewma":2.7352,"n":6,"full":false},{"id":"r6","date":"2026-08-14","v":3.6667,"ewma":3.0185,"n":6,"full":false},{"id":"r7","date":"2026-08-17","v":2.8333,"ewma":2.9651,"n":6,"full":false},{"id":"r8","date":"2026-08-18","v":2.6667,"ewma":2.8822,"n":6,"full":false},{"id":"r11","date":"2026-08-28","v":3.5,"ewma":3.0492,"n":6,"full":false},{"id":"r13","date":"2026-09-15","v":3.5,"ewma":3.1686,"n":6,"full":false},{"id":"r14","date":"2026-09-19","v":3.5,"ewma":3.2551,"n":6,"full":false},{"id":"r15","date":"2026-09-19","v":2.6667,"ewma":3.1032,"n":6,"full":false},{"id":"r16","date":"2026-09-24","v":2.3333,"ewma":2.906,"n":6,"full":false}]},{"key":"par5_avg","label":"Par 5s: average to par","unit":"num","better":"lower","tier":"B","group":"partype","desc":"Average score relative to par on par 5s.","headline":"+2.3","detail":"13 holes · 13 rounds","points":[{"id":"r1","date":"2026-07-08","v":5.0,"ewma":5.0,"n":1,"full":false},{"id":"r2","date":"2026-07-15","v":3.0,"ewma":3.8571,"n":1,"full":false},{"id":"r3","date":"2026-08-05","v":3.0,"ewma":3.4865,"n":1,"full":false},{"id":"r4","date":"2026-08-10","v":0.0,"ewma":2.2114,"n":1,"full":false},{"id":"r5","date":"2026-08-12","v":1.0,"ewma":1.8143,"n":1,"full":false},{"id":"r6","date":"2026-08-14","v":1.0,"ewma":1.5667,"n":1,"full":false},{"id":"r7","date":"2026-08-17","v":4.0,"ewma":2.2687,"n":1,"full":false},{"id":"r8","date":"2026-08-18","v":4.0,"ewma":2.7497,"n":1,"full":false},{"id":"r11","date":"2026-08-28","v":3.0,"ewma":2.8173,"n":1,"full":false},{"id":"r13","date":"2026-09-15","v":2.0,"ewma":2.6008,"n":1,"full":false},{"id":"r14","date":"2026-09-19","v":1.0,"ewma":2.183,"n":1,"full":false},{"id":"r15","date":"2026-09-19","v":2.0,"ewma":2.1357,"n":1,"full":false},{"id":"r16","date":"2026-09-24","v":1.0,"ewma":1.8449,"n":1,"full":false}]}],"identity":{"to_green":17.3333,"putts_over":7.4444,"to_par":24.7778,"rounds":9,"sentence":"Per 9 holes Shane averages +24.8 to par: +17.3 in strokes to reach the green beyond regulation and +7.4 in putts relative to two per hole (9 rounds with putts tracked on every hole)."},"clubs":{"distances":{"clubs":[{"club":"Driver","order":0,"n":30,"n_invalid":12,"n_after":23,"n_live":7,"median_live":214.3,"median":182.6,"q1":154.75,"q3":210.8,"min":119.5,"max":262.0,"shots":[{"d":156.8,"date":"2026-07-08","hole":1,"after":true},{"d":154.5,"date":"2026-07-08","hole":5,"after":true},{"d":222.0,"date":"2026-07-08","hole":9,"after":true},{"d":140.3,"date":"2026-07-15","hole":1,"after":true},{"d":164.1,"date":"2026-07-15","hole":5,"after":true},{"d":200.8,"date":"2026-07-15","hole":8,"after":true},{"d":180.8,"date":"2026-08-05","hole":1,"after":true},{"d":211.5,"date":"2026-08-05","hole":3,"after":true},{"d":119.5,"date":"2026-08-05","hole":4,"after":true},{"d":159.5,"date":"2026-08-05","hole":5,"after":true},{"d":132.0,"date":"2026-08-05","hole":6,"after":true},{"d":188.6,"date":"2026-08-05","hole":8,"after":true},{"d":208.4,"date":"2026-08-05","hole":9,"after":true},{"d":184.4,"date":"2026-08-10","hole":3,"after":true},{"d":159.9,"date":"2026-08-10","hole":4,"after":true},{"d":234.6,"date":"2026-08-10","hole":6,"after":true},{"d":211.2,"date":"2026-08-10","hole":8,"after":true},{"d":206.5,"date":"2026-08-10","hole":9,"after":true},{"d":155.2,"date":"2026-08-12","hole":3,"after":true},{"d":209.6,"date":"2026-08-12","hole":8,"after":true},{"d":128.7,"date":"2026-08-14","hole":1,"after":true},{"d":168.9,"date":"2026-08-14","hole":5,"after":true},{"d":147.2,"date":"2026-08-14","hole":6,"after":true},{"d":154.6,"date":"2026-08-17","hole":3,"after":false},{"d":185.6,"date":"2026-08-17","hole":4,"after":false},{"d":142.3,"date":"2026-08-17","hole":6,"after":false},{"d":221.1,"date":"2026-08-17","hole":8,"after":false},{"d":217.3,"date":"2026-08-18","hole":4,"after":false},{"d":262.0,"date":"2026-08-18","hole":6,"after":false},{"d":214.3,"date":"2026-08-18","hole":8,"after":false}]},{"club":"3W","order":13,"n":1,"n_invalid":2,"n_after":1,"n_live":0,"median_live":null,"median":84.4,"q1":84.4,"q3":84.4,"min":84.4,"max":84.4,"shots":[{"d":84.4,"date":"2026-08-14","hole":5,"after":true}]},{"club":"5H","order":35,"n":9,"n_invalid":0,"n_after":6,"n_live":3,"median_live":152.0,"median":152.0,"q1":132.6,"q3":200.8,"min":127.6,"max":244.4,"shots":[{"d":200.8,"date":"2026-08-10","hole":1,"after":true},{"d":244.4,"date":"2026-08-10","hole":5,"after":true},{"d":137.0,"date":"2026-08-10","hole":7,"after":true},{"d":212.5,"date":"2026-08-12","hole":1,"after":true},{"d":132.6,"date":"2026-08-12","hole":7,"after":true},{"d":130.6,"date":"2026-08-12","hole":9,"after":true},{"d":127.6,"date":"2026-08-17","hole":1,"after":false},{"d":152.0,"date":"2026-08-17","hole":9,"after":false},{"d":160.3,"date":"2026-08-18","hole":7,"after":false}]},{"club":"6i","order":56,"n":4,"n_invalid":5,"n_after":2,"n_live":2,"median_live":158.15,"median":178.6,"q1":167.975,"q3":184.05,"min":138.5,"max":198.0,"shots":[{"d":179.4,"date":"2026-08-05","hole":6,"after":true},{"d":198.0,"date":"2026-08-12","hole":5,"after":true},{"d":138.5,"date":"2026-08-17","hole":5,"after":false},{"d":177.8,"date":"2026-08-18","hole":5,"after":false}]},{"club":"7i","order":57,"n":6,"n_invalid":3,"n_after":5,"n_live":1,"median_live":114.1,"median":121.05,"q1":114.725,"q3":137.35,"min":74.8,"max":159.3,"shots":[{"d":141.3,"date":"2026-07-08","hole":8,"after":true},{"d":159.3,"date":"2026-08-05","hole":3,"after":true},{"d":125.5,"date":"2026-08-12","hole":5,"after":true},{"d":116.6,"date":"2026-08-12","hole":9,"after":true},{"d":74.8,"date":"2026-08-14","hole":8,"after":true},{"d":114.1,"date":"2026-08-18","hole":5,"after":false}]},{"club":"8i","order":58,"n":4,"n_invalid":0,"n_after":3,"n_live":1,"median_live":135.1,"median":104.35,"q1":73.225,"q3":142.025,"min":72.1,"max":162.8,"shots":[{"d":72.1,"date":"2026-08-10","hole":2,"after":true},{"d":162.8,"date":"2026-08-12","hole":2,"after":true},{"d":73.6,"date":"2026-08-14","hole":6,"after":true},{"d":135.1,"date":"2026-08-17","hole":1,"after":false}]},{"club":"9i","order":59,"n":20,"n_invalid":10,"n_after":20,"n_live":0,"median_live":null,"median":69.85,"q1":61.375,"q3":111.75,"min":25.3,"max":147.4,"shots":[{"d":66.2,"date":"2026-07-08","hole":1,"after":true},{"d":62.8,"date":"2026-07-08","hole":5,"after":true},{"d":54.9,"date":"2026-07-08","hole":5,"after":true},{"d":125.6,"date":"2026-07-15","hole":1,"after":true},{"d":73.2,"date":"2026-07-15","hole":4,"after":true},{"d":72.3,"date":"2026-07-15","hole":5,"after":true},{"d":57.0,"date":"2026-07-15","hole":8,"after":true},{"d":124.1,"date":"2026-08-05","hole":1,"after":true},{"d":135.1,"date":"2026-08-05","hole":2,"after":true},{"d":67.4,"date":"2026-08-05","hole":4,"after":true},{"d":121.2,"date":"2026-08-05","hole":4,"after":true},{"d":147.4,"date":"2026-08-05","hole":5,"after":true},{"d":57.7,"date":"2026-08-05","hole":7,"after":true},{"d":103.6,"date":"2026-08-05","hole":8,"after":true},{"d":106.1,"date":"2026-08-10","hole":3,"after":true},{"d":108.6,"date":"2026-08-10","hole":4,"after":true},{"d":25.3,"date":"2026-08-12","hole":3,"after":true},{"d":58.3,"date":"2026-08-12","hole":3,"after":true},{"d":64.4,"date":"2026-08-14","hole":1,"after":true},{"d":62.4,"date":"2026-08-14","hole":2,"after":true}]},{"club":"PW","order":74.6,"n":22,"n_invalid":3,"n_after":21,"n_live":1,"median_live":102.3,"median":52.0,"q1":22.25,"q3":64.9,"min":9.9,"max":109.4,"shots":[{"d":89.7,"date":"2026-08-10","hole":1,"after":true},{"d":62.5,"date":"2026-08-10","hole":2,"after":true},{"d":23.0,"date":"2026-08-10","hole":2,"after":true},{"d":13.8,"date":"2026-08-10","hole":3,"after":true},{"d":81.8,"date":"2026-08-10","hole":4,"after":true},{"d":46.0,"date":"2026-08-10","hole":5,"after":true},{"d":15.5,"date":"2026-08-10","hole":5,"after":true},{"d":57.3,"date":"2026-08-10","hole":6,"after":true},{"d":60.6,"date":"2026-08-10","hole":7,"after":true},{"d":22.0,"date":"2026-08-10","hole":7,"after":true},{"d":81.1,"date":"2026-08-10","hole":8,"after":true},{"d":26.2,"date":"2026-08-10","hole":8,"after":true},{"d":56.3,"date":"2026-08-10","hole":9,"after":true},{"d":56.5,"date":"2026-08-12","hole":1,"after":true},{"d":65.7,"date":"2026-08-12","hole":3,"after":true},{"d":40.5,"date":"2026-08-12","hole":5,"after":true},{"d":47.7,"date":"2026-08-12","hole":7,"after":true},{"d":12.2,"date":"2026-08-12","hole":8,"after":true},{"d":109.4,"date":"2026-08-12","hole":8,"after":true},{"d":9.9,"date":"2026-08-12","hole":9,"after":true},{"d":12.2,"date":"2026-08-12","hole":9,"after":true},{"d":102.3,"date":"2026-08-17","hole":9,"after":false}]},{"club":"SW","order":75.6,"n":3,"n_invalid":3,"n_after":3,"n_live":0,"median_live":null,"median":19.7,"q1":17.55,"q3":23.9,"min":15.4,"max":28.1,"shots":[{"d":15.4,"date":"2026-08-10","hole":4,"after":true},{"d":19.7,"date":"2026-08-10","hole":6,"after":true},{"d":28.1,"date":"2026-08-10","hole":9,"after":true}]}],"invalid":[{"d":206.7,"date":"2026-07-08","hole":3,"after":true,"reason":"same distance as another shot on this hole (an app default, not a measurement)","club":"Driver"},{"d":166.5,"date":"2026-07-08","hole":4,"after":true,"reason":"same distance as another shot on this hole (an app default, not a measurement)","club":"Driver"},{"d":284.2,"date":"2026-07-08","hole":6,"after":true,"reason":"same distance as another shot on this hole (an app default, not a measurement)","club":"Driver"},{"d":149.7,"date":"2026-07-08","hole":8,"after":true,"reason":"same distance as another shot on this hole (an app default, not a measurement)","club":"Driver"},{"d":206.7,"date":"2026-07-15","hole":3,"after":true,"reason":"same distance as another shot on this hole (an app default, not a measurement)","club":"Driver"},{"d":166.5,"date":"2026-07-15","hole":4,"after":true,"reason":"same distance as another shot on this hole (an app default, not a measurement)","club":"Driver"},{"d":284.2,"date":"2026-07-15","hole":6,"after":true,"reason":"same distance as another shot on this hole (an app default, not a measurement)","club":"Driver"},{"d":115.7,"date":"2026-07-15","hole":9,"after":true,"reason":"same distance as another shot on this hole (an app default, not a measurement)","club":"Driver"},{"d":206.7,"date":"2026-08-14","hole":3,"after":true,"reason":"same distance as another shot on this hole (an app default, not a measurement)","club":"Driver"},{"d":166.5,"date":"2026-08-14","hole":4,"after":true,"reason":"same distance as another shot on this hole (an app default, not a measurement)","club":"Driver"},{"d":149.7,"date":"2026-08-14","hole":8,"after":true,"reason":"same distance as another shot on this hole (an app default, not a measurement)","club":"Driver"},{"d":115.7,"date":"2026-08-14","hole":9,"after":true,"reason":"same distance as another shot on this hole (an app default, not a measurement)","club":"Driver"},{"d":83.2,"date":"2026-08-14","hole":4,"after":true,"reason":"same distance as another shot on this hole (an app default, not a measurement)","club":"3W"},{"d":84.4,"date":"2026-08-14","hole":7,"after":true,"reason":"same distance as another shot on this hole (an app default, not a measurement)","club":"3W"},{"d":83.2,"date":"2026-07-08","hole":4,"after":true,"reason":"same distance as another shot on this hole (an app default, not a measurement)","club":"6i"},{"d":84.4,"date":"2026-07-08","hole":7,"after":true,"reason":"same distance as another shot on this hole (an app default, not a measurement)","club":"6i"},{"d":83.2,"date":"2026-07-15","hole":4,"after":true,"reason":"same distance as another shot on this hole (an app default, not a measurement)","club":"6i"},{"d":84.4,"date":"2026-07-15","hole":7,"after":true,"reason":"same distance as another shot on this hole (an app default, not a measurement)","club":"6i"},{"d":84.4,"date":"2026-08-05","hole":7,"after":true,"reason":"same distance as another shot on this hole (an app default, not a measurement)","club":"6i"},{"d":103.4,"date":"2026-07-08","hole":3,"after":true,"reason":"same distance as another shot on this hole (an app default, not a measurement)","club":"7i"},{"d":103.4,"date":"2026-07-15","hole":3,"after":true,"reason":"same distance as another shot on this hole (an app default, not a measurement)","club":"7i"},{"d":103.4,"date":"2026-08-14","hole":3,"after":true,"reason":"same distance as another shot on this hole (an app default, not a measurement)","club":"7i"},{"d":112.3,"date":"2026-07-08","hole":2,"after":true,"reason":"same distance as another shot on this hole (an app default, not a measurement)","club":"9i"},{"d":51.7,"date":"2026-07-08","hole":3,"after":true,"reason":"same distance as another shot on this hole (an app default, not a measurement)","club":"9i"},{"d":72.8,"date":"2026-07-08","hole":7,"after":true,"reason":"same distance as another shot on this hole (an app default, not a measurement)","club":"9i"},{"d":112.3,"date":"2026-07-15","hole":2,"after":true,"reason":"same distance as another shot on this hole (an app default, not a measurement)","club":"9i"},{"d":51.7,"date":"2026-07-15","hole":3,"after":true,"reason":"same distance as another shot on this hole (an app default, not a measurement)","club":"9i"},{"d":72.8,"date":"2026-07-15","hole":7,"after":true,"reason":"same distance as another shot on this hole (an app default, not a measurement)","club":"9i"},{"d":57.9,"date":"2026-07-15","hole":9,"after":true,"reason":"same distance as another shot on this hole (an app default, not a measurement)","club":"9i"},{"d":51.7,"date":"2026-08-14","hole":3,"after":true,"reason":"same distance as another shot on this hole (an app default, not a measurement)","club":"9i"},{"d":72.8,"date":"2026-08-14","hole":7,"after":true,"reason":"same distance as another shot on this hole (an app default, not a measurement)","club":"9i"},{"d":57.9,"date":"2026-08-14","hole":9,"after":true,"reason":"same distance as another shot on this hole (an app default, not a measurement)","club":"9i"},{"d":4.9,"date":"2026-08-10","hole":9,"after":true,"reason":"under 5 yards","club":"PW"},{"d":1.9,"date":"2026-08-12","hole":8,"after":true,"reason":"under 5 yards","club":"PW"},{"d":0.0,"date":"2026-08-17","hole":9,"after":false,"reason":"under 5 yards","club":"PW"},{"d":1.7,"date":"2026-08-10","hole":8,"after":true,"reason":"under 5 yards","club":"SW"},{"d":1.9,"date":"2026-08-10","hole":8,"after":true,"reason":"under 5 yards","club":"SW"},{"d":3.1,"date":"2026-08-10","hole":9,"after":true,"reason":"under 5 yards","club":"SW"}],"n_shots":149,"n_putts":12,"n_valid":99,"n_after":84,"min_yards":5.0,"max_yards":400.0},"coverage":{"rounds_total":13,"rounds_with_shots":8,"rounds_logged_after":6,"holes_played":72,"holes_with_shots":64,"by_hole":[{"hole":1,"played":8,"rounds":7,"shots":16},{"hole":2,"played":8,"rounds":6,"shots":9},{"hole":3,"played":8,"rounds":7,"shots":19},{"hole":4,"played":8,"rounds":7,"shots":17},{"hole":5,"played":8,"rounds":8,"shots":19},{"hole":6,"played":8,"rounds":7,"shots":12},{"hole":7,"played":8,"rounds":7,"shots":17},{"hole":8,"played":8,"rounds":8,"shots":20},{"hole":9,"played":8,"rounds":7,"shots":20}],"rounds":[{"id":"r8","date":"2026-08-18","course":"Southborough Golf Club","holes_played":9,"holes_with_shots":5,"shots":6,"putts":0,"logged":"live"},{"id":"r7","date":"2026-08-17","course":"Southborough Golf Club","holes_played":9,"holes_with_shots":7,"shots":10,"putts":0,"logged":"live"},{"id":"r6","date":"2026-08-14","course":"Southborough Golf Club","holes_played":9,"holes_with_shots":9,"shots":18,"putts":0,"logged":"after"},{"id":"r5","date":"2026-08-12","course":"Southborough Golf Club","holes_played":9,"holes_with_shots":7,"shots":24,"putts":4,"logged":"after"},{"id":"r4","date":"2026-08-10","course":"Southborough Golf Club","holes_played":9,"holes_with_shots":9,"shots":39,"putts":8,"logged":"after"},{"id":"r3","date":"2026-08-05","course":"Southborough Golf Club","holes_played":9,"holes_with_shots":9,"shots":17,"putts":0,"logged":"after"},{"id":"r2","date":"2026-07-15","course":"Southborough Golf Club","holes_played":9,"holes_with_shots":9,"shots":18,"putts":0,"logged":"after"},{"id":"r1","date":"2026-07-08","course":"Southborough Golf Club","holes_played":9,"holes_with_shots":9,"shots":17,"putts":0,"logged":"after"}]}},"holes":{"course_key":"southborough","course":"Southborough Golf Club","rounds":13,"last_date":"2026-09-24","holes":[{"hole":1,"par":4,"si":3,"n":13,"last":4,"last_date":"2026-09-24","avg":2.6923},{"hole":2,"par":3,"si":9,"n":13,"last":2,"last_date":"2026-09-24","avg":2.6923},{"hole":3,"par":5,"si":5,"n":13,"last":1,"last_date":"2026-09-24","avg":2.3077},{"hole":4,"par":4,"si":2,"n":13,"last":3,"last_date":"2026-09-24","avg":3.1538},{"hole":5,"par":4,"si":1,"n":13,"last":2,"last_date":"2026-09-24","avg":3.0769},{"hole":6,"par":4,"si":8,"n":13,"last":2,"last_date":"2026-09-24","avg":2.9231},{"hole":7,"par":3,"si":6,"n":13,"last":2,"last_date":"2026-09-24","avg":2.0},{"hole":8,"par":4,"si":7,"n":13,"last":0,"last_date":"2026-09-24","avg":2.7692},{"hole":9,"par":4,"si":4,"n":13,"last":3,"last_date":"2026-09-24","avg":3.2308}]}},"other":{"n":3,"hero":{"verdict":"Trend now +28.3 per 9 holes (80% noise band +27.2 to +29.4).","points":[{"id":"r9","date":"2026-08-20","y":30.5,"holes":18,"gross":131,"to_par":61,"par":70,"course":"Oyster Bay Golf Links","halves":{"front":31,"back":30}},{"id":"r10","date":"2026-08-22","y":27.5,"holes":18,"gross":127,"to_par":55,"par":72,"course":"Barefoot Resort - Dye Course","halves":{"front":26,"back":29}},{"id":"r12","date":"2026-09-09","y":27.0,"holes":9,"gross":63,"to_par":27,"par":36,"course":"Butter Brook Golf Club","halves":null}],"trend":[{"date":"2026-08-20","y":30.5,"lo":28.7846,"hi":32.2154},{"date":"2026-08-22","y":28.7857,"lo":27.5604,"hi":30.011},{"date":"2026-09-09","y":28.2931,"lo":27.1817,"hi":29.4045}],"missing":0,"missing_note":"","sigma":1.893},"diff":{"points":[{"id":"r9","date":"2026-08-20","holes":18,"ours":59.7,"nine9":null,"rated":true,"kind":"ndb_adjusted","b18":60.1,"course":"Oyster Bay Golf Links","to_par":61},{"id":"r10","date":"2026-08-22","holes":18,"ours":50.6,"nine9":null,"rated":true,"kind":"ndb_adjusted","b18":49.7,"course":"Barefoot Resort - Dye Course","to_par":55},{"id":"r12","date":"2026-09-09","holes":9,"ours":53.9,"nine9":26.1,"rated":true,"kind":"nine_hole_scaled","b18":51.9,"course":"Butter Brook Golf Club","to_par":27}],"hi":[{"date":"2026-08-14","hi":50.3},{"date":"2026-08-17","hi":51.3},{"date":"2026-08-18","hi":51.3},{"date":"2026-08-20","hi":51.8},{"date":"2026-08-22","hi":51.1},{"date":"2026-08-28","hi":51.1},{"date":"2026-09-09","hi":51.5},{"date":"2026-09-15","hi":51.5},{"date":"2026-09-19","hi":51.5},{"date":"2026-09-19","hi":51.9},{"date":"2026-09-24","hi":51.2}],"n_ours":3,"n_18b":3,"note":""},"lessons":{"sigma":4.8648,"sigma_n":3,"sigma_basis":"all rounds (9-hole doubled)","sigma_mssd":4.6171,"n_before":5,"n_after":5,"learning_window_days":14,"mde_n":8.6149,"mde_sentence":"With a round-to-round spread of σ≈4.9 differential points, a change must be about 8.6 differential points (roughly 4.7 strokes per 9 holes) to stand out with 5 rounds each side (about 6.1 with 10, 4.3 with 20).","unit":"differential points","strokes_per_unit_9":0.5428,"lessons":[],"caveats":["These are before\/after descriptions, not causal estimates: practice, weather, courses, tees, form and luck all change too.","Regression to the mean: lessons often follow a bad stretch, and scores usually recover toward average without any help. That can look like a 2-stroke gain when nothing changed.","Equipment changed alongside a lesson cannot be separated from it.","Seasonality, course and tee mix, and playing conditions (PCC is not applied) all add noise.","Intervals are percentile bootstraps over only a few rounds; they are narrower than they should be at this sample size."],"method":"Mean outcome of the rounds before each lesson vs the rounds after a 14-day learning window; 9-hole rounds count half. Intervals are percentile bootstraps over rounds (display only)."},"multiples":[{"key":"dbl_9","label":"Double bogey or worse per 9","unit":"num","better":"lower","tier":"A","group":null,"desc":"Holes finished two or more over par, per 9 holes.","headline":"8.4","detail":"3 rounds","points":[{"id":"r9","date":"2026-08-20","v":8.5,"ewma":8.5,"n":2.0,"full":true},{"id":"r10","date":"2026-08-22","v":8.0,"ewma":8.2143,"n":2.0,"full":true},{"id":"r12","date":"2026-09-09","v":9.0,"ewma":8.431,"n":1.0,"full":false}]},{"key":"triple_9","label":"Triple bogey or worse per 9","unit":"num","better":"lower","tier":"B","group":null,"desc":"Holes finished three or more over par, per 9 holes. When most holes are doubles, the triples are where the big numbers come from (needs the course's per-hole pars).","headline":"7.4","detail":"3 rounds","points":[{"id":"r9","date":"2026-08-20","v":7.5,"ewma":7.5,"n":2.0,"full":true},{"id":"r10","date":"2026-08-22","v":7.0,"ewma":7.2143,"n":2.0,"full":true},{"id":"r12","date":"2026-09-09","v":8.0,"ewma":7.431,"n":1.0,"full":false}]},{"key":"par3_avg","label":"Par 3s: average to par","unit":"num","better":"lower","tier":"B","group":"partype","desc":"Average score relative to par on par 3s (needs the course's per-hole pars).","headline":"+2.4","detail":"12 holes · 3 rounds","points":[{"id":"r9","date":"2026-08-20","v":2.2,"ewma":2.2,"n":5,"full":true},{"id":"r10","date":"2026-08-22","v":2.25,"ewma":2.2258,"n":4,"full":true},{"id":"r12","date":"2026-09-09","v":3.0,"ewma":2.4894,"n":3,"full":false}]},{"key":"par4_avg","label":"Par 4s: average to par","unit":"num","better":"lower","tier":"B","group":"partype","desc":"Average score relative to par on par 4s.","headline":"+3.4","detail":"23 holes · 3 rounds","points":[{"id":"r9","date":"2026-08-20","v":3.9,"ewma":3.9,"n":10,"full":true},{"id":"r10","date":"2026-08-22","v":3.1,"ewma":3.4429,"n":10,"full":true},{"id":"r12","date":"2026-09-09","v":3.0,"ewma":3.3605,"n":3,"full":false}]},{"key":"par5_avg","label":"Par 5s: average to par","unit":"num","better":"lower","tier":"B","group":"partype","desc":"Average score relative to par on par 5s.","headline":"+3.5","detail":"10 holes · 3 rounds","points":[{"id":"r9","date":"2026-08-20","v":3.6667,"ewma":3.6667,"n":3,"full":true},{"id":"r10","date":"2026-08-22","v":3.75,"ewma":3.72,"n":4,"full":true},{"id":"r12","date":"2026-09-09","v":3.0,"ewma":3.439,"n":3,"full":false}]}],"identity":null,"clubs":{"distances":{"clubs":[{"club":"5H","order":35,"n":1,"n_invalid":0,"n_after":0,"n_live":1,"median_live":170.7,"median":170.7,"q1":170.7,"q3":170.7,"min":170.7,"max":170.7,"shots":[{"d":170.7,"date":"2026-08-20","hole":1,"after":false}]}],"invalid":[],"n_shots":1,"n_putts":0,"n_valid":1,"n_after":0,"min_yards":5.0,"max_yards":400.0},"coverage":{"rounds_total":3,"rounds_with_shots":1,"rounds_logged_after":0,"holes_played":18,"holes_with_shots":1,"by_hole":[{"hole":1,"played":1,"rounds":1,"shots":1},{"hole":2,"played":1,"rounds":0,"shots":0},{"hole":3,"played":1,"rounds":0,"shots":0},{"hole":4,"played":1,"rounds":0,"shots":0},{"hole":5,"played":1,"rounds":0,"shots":0},{"hole":6,"played":1,"rounds":0,"shots":0},{"hole":7,"played":1,"rounds":0,"shots":0},{"hole":8,"played":1,"rounds":0,"shots":0},{"hole":9,"played":1,"rounds":0,"shots":0},{"hole":10,"played":1,"rounds":0,"shots":0},{"hole":11,"played":1,"rounds":0,"shots":0},{"hole":12,"played":1,"rounds":0,"shots":0},{"hole":13,"played":1,"rounds":0,"shots":0},{"hole":14,"played":1,"rounds":0,"shots":0},{"hole":15,"played":1,"rounds":0,"shots":0},{"hole":16,"played":1,"rounds":0,"shots":0},{"hole":17,"played":1,"rounds":0,"shots":0},{"hole":18,"played":1,"rounds":0,"shots":0}],"rounds":[{"id":"r9","date":"2026-08-20","course":"Oyster Bay Golf Links","holes_played":18,"holes_with_shots":1,"shots":1,"putts":0,"logged":"unknown"}]}},"holes":null}},"events":[],"spans":{"practice":[],"injury":[]},"rounds":[{"id":"r16","date":"2026-09-24","course":"Southborough Golf Club","view":"c1","mapped":true,"holes":9,"nine":"front","entry_mode":"hole_by_hole","source":"18b_export","gross":54,"to_par":19,"to_par_9":19.0,"par":35,"halves":null,"diff_equiv":43.8,"differential":50.1,"diff_kind":"nine_hole_scaled","rated":true,"b18":43.8,"sg":null,"sg_ttg":null,"tee":null,"fir":null,"gir":[2,9],"putts":22,"putts_recorded":22,"putts_partial":false,"dbl":7,"tier":"B","flags":[],"demo":false,"card":[{"h":1,"par":4,"si":3,"s":8,"p":null,"fw":null,"g":null,"pen":null},{"h":2,"par":3,"si":9,"s":5,"p":null,"fw":null,"g":null,"pen":null},{"h":3,"par":5,"si":5,"s":6,"p":null,"fw":null,"g":null,"pen":null},{"h":4,"par":4,"si":2,"s":7,"p":null,"fw":null,"g":null,"pen":null},{"h":5,"par":4,"si":1,"s":6,"p":null,"fw":null,"g":null,"pen":null},{"h":6,"par":4,"si":8,"s":6,"p":null,"fw":null,"g":null,"pen":null},{"h":7,"par":3,"si":6,"s":5,"p":null,"fw":null,"g":null,"pen":null},{"h":8,"par":4,"si":7,"s":4,"p":null,"fw":null,"g":null,"pen":null},{"h":9,"par":4,"si":4,"s":7,"p":null,"fw":null,"g":null,"pen":null}],"baseline":{"n":10,"to_par_9":27.25,"fir":0.2857,"gir":0.1111,"putts_9":22.3333}},{"id":"r15","date":"2026-09-19","course":"Southborough Golf Club","view":"c1","mapped":true,"holes":9,"nine":"front","entry_mode":"hole_by_hole","source":"18b_export","gross":58,"to_par":23,"to_par_9":23.0,"par":35,"halves":null,"diff_equiv":51.8,"differential":53.9,"diff_kind":"nine_hole_scaled","rated":true,"b18":51.8,"sg":null,"sg_ttg":null,"tee":null,"fir":null,"gir":null,"putts":null,"putts_recorded":14,"putts_partial":true,"dbl":8,"tier":"B","flags":["putts_partial"],"demo":false,"card":[{"h":1,"par":4,"si":3,"s":6,"p":null,"fw":null,"g":null,"pen":null},{"h":2,"par":3,"si":9,"s":6,"p":null,"fw":null,"g":null,"pen":null},{"h":3,"par":5,"si":5,"s":7,"p":null,"fw":null,"g":null,"pen":null},{"h":4,"par":4,"si":2,"s":8,"p":null,"fw":null,"g":null,"pen":null},{"h":5,"par":4,"si":1,"s":7,"p":null,"fw":null,"g":null,"pen":null},{"h":6,"par":4,"si":8,"s":5,"p":null,"fw":null,"g":null,"pen":null},{"h":7,"par":3,"si":6,"s":5,"p":null,"fw":null,"g":null,"pen":null},{"h":8,"par":4,"si":7,"s":8,"p":null,"fw":null,"g":null,"pen":null},{"h":9,"par":4,"si":4,"s":6,"p":null,"fw":null,"g":null,"pen":null}],"baseline":{"n":10,"to_par_9":27.0833,"fir":0.2857,"gir":0.1111,"putts_9":22.25}},{"id":"r14","date":"2026-09-19","course":"Southborough Golf Club","view":"c1","mapped":true,"holes":9,"nine":"front","entry_mode":"hole_by_hole","source":"18b_export","gross":60,"to_par":25,"to_par_9":25.0,"par":35,"halves":null,"diff_equiv":55.8,"differential":55.9,"diff_kind":"nine_hole_scaled","rated":true,"b18":55.8,"sg":null,"sg_ttg":null,"tee":null,"fir":null,"gir":null,"putts":null,"putts_recorded":7,"putts_partial":true,"dbl":6,"tier":"B","flags":["putts_partial"],"demo":false,"card":[{"h":1,"par":4,"si":3,"s":5,"p":null,"fw":null,"g":null,"pen":null},{"h":2,"par":3,"si":9,"s":4,"p":null,"fw":null,"g":null,"pen":null},{"h":3,"par":5,"si":5,"s":6,"p":null,"fw":null,"g":null,"pen":null},{"h":4,"par":4,"si":2,"s":8,"p":null,"fw":null,"g":null,"pen":null},{"h":5,"par":4,"si":1,"s":8,"p":null,"fw":null,"g":null,"pen":null},{"h":6,"par":4,"si":8,"s":8,"p":null,"fw":null,"g":null,"pen":null},{"h":7,"par":3,"si":6,"s":5,"p":null,"fw":null,"g":null,"pen":null},{"h":8,"par":4,"si":7,"s":8,"p":null,"fw":null,"g":null,"pen":null},{"h":9,"par":4,"si":4,"s":8,"p":null,"fw":null,"g":null,"pen":null}],"baseline":{"n":10,"to_par_9":26.9167,"fir":0.2857,"gir":0.1333,"putts_9":22.6}},{"id":"r13","date":"2026-09-15","course":"Southborough Golf Club","view":"c1","mapped":true,"holes":9,"nine":"front","entry_mode":"hole_by_hole","source":"18b_export","gross":65,"to_par":30,"to_par_9":30.0,"par":35,"halves":null,"diff_equiv":65.8,"differential":60.9,"diff_kind":"nine_hole_scaled","rated":true,"b18":65.8,"sg":null,"sg_ttg":null,"tee":null,"fir":null,"gir":null,"putts":null,"putts_recorded":10,"putts_partial":true,"dbl":9,"tier":"B","flags":["putts_partial"],"demo":false,"card":[{"h":1,"par":4,"si":3,"s":6,"p":null,"fw":null,"g":null,"pen":null},{"h":2,"par":3,"si":9,"s":6,"p":null,"fw":null,"g":null,"pen":null},{"h":3,"par":5,"si":5,"s":7,"p":null,"fw":null,"g":null,"pen":null},{"h":4,"par":4,"si":2,"s":8,"p":null,"fw":null,"g":null,"pen":null},{"h":5,"par":4,"si":1,"s":8,"p":null,"fw":null,"g":null,"pen":null},{"h":6,"par":4,"si":8,"s":8,"p":null,"fw":null,"g":null,"pen":null},{"h":7,"par":3,"si":6,"s":7,"p":null,"fw":null,"g":null,"pen":null},{"h":8,"par":4,"si":7,"s":7,"p":null,"fw":null,"g":null,"pen":null},{"h":9,"par":4,"si":4,"s":8,"p":null,"fw":null,"g":null,"pen":null}],"baseline":{"n":10,"to_par_9":26.1667,"fir":0.2857,"gir":0.1481,"putts_9":22.8333}},{"id":"r12","date":"2026-09-09","course":"Butter Brook Golf Club","view":"other","mapped":true,"holes":9,"nine":"front","entry_mode":"hole_by_hole","source":"18b_export","gross":63,"to_par":27,"to_par_9":27.0,"par":36,"halves":null,"diff_equiv":52.1683,"differential":53.9,"diff_kind":"nine_hole_scaled","rated":true,"b18":51.9,"sg":null,"sg_ttg":null,"tee":null,"fir":null,"gir":null,"putts":null,"putts_recorded":null,"putts_partial":false,"dbl":9,"tier":"B","flags":[],"demo":false,"card":[{"h":1,"par":5,"si":11,"s":8,"p":null,"fw":null,"g":null,"pen":null},{"h":2,"par":4,"si":15,"s":6,"p":null,"fw":null,"g":null,"pen":null},{"h":3,"par":3,"si":5,"s":6,"p":null,"fw":null,"g":null,"pen":null},{"h":4,"par":4,"si":7,"s":8,"p":null,"fw":null,"g":null,"pen":null},{"h":5,"par":3,"si":17,"s":6,"p":null,"fw":null,"g":null,"pen":null},{"h":6,"par":4,"si":1,"s":7,"p":null,"fw":null,"g":null,"pen":null},{"h":7,"par":5,"si":9,"s":8,"p":null,"fw":null,"g":null,"pen":null},{"h":8,"par":3,"si":13,"s":6,"p":null,"fw":null,"g":null,"pen":null},{"h":9,"par":5,"si":3,"s":8,"p":null,"fw":null,"g":null,"pen":null}],"baseline":{"n":10,"to_par_9":25.8333,"fir":0.3333,"gir":0.127,"putts_9":24.0}},{"id":"r11","date":"2026-08-28","course":"Southborough Golf Club","view":"c1","mapped":true,"holes":9,"nine":"front","entry_mode":"hole_by_hole","source":"18b_export","gross":65,"to_par":30,"to_par_9":30.0,"par":35,"halves":null,"diff_equiv":65.8,"differential":60.7,"diff_kind":"nine_hole_scaled","rated":true,"b18":65.8,"sg":null,"sg_ttg":null,"tee":null,"fir":null,"gir":[1,9],"putts":21,"putts_recorded":21,"putts_partial":false,"dbl":9,"tier":"B","flags":[],"demo":false,"card":[{"h":1,"par":4,"si":3,"s":8,"p":null,"fw":null,"g":null,"pen":null},{"h":2,"par":3,"si":9,"s":6,"p":null,"fw":null,"g":null,"pen":null},{"h":3,"par":5,"si":5,"s":8,"p":null,"fw":null,"g":null,"pen":null},{"h":4,"par":4,"si":2,"s":8,"p":null,"fw":null,"g":null,"pen":null},{"h":5,"par":4,"si":1,"s":7,"p":null,"fw":null,"g":null,"pen":null},{"h":6,"par":4,"si":8,"s":8,"p":null,"fw":null,"g":null,"pen":null},{"h":7,"par":3,"si":6,"s":6,"p":null,"fw":null,"g":null,"pen":null},{"h":8,"par":4,"si":7,"s":6,"p":null,"fw":null,"g":null,"pen":null},{"h":9,"par":4,"si":4,"s":8,"p":null,"fw":null,"g":null,"pen":null}],"baseline":{"n":10,"to_par_9":26.0,"fir":0.3214,"gir":0.127,"putts_9":26.5714}},{"id":"r10","date":"2026-08-22","course":"Barefoot Resort - Dye Course","view":"other","mapped":true,"holes":18,"nine":null,"entry_mode":"hole_by_hole","source":"18b_export","gross":127,"to_par":55,"to_par_9":27.5,"par":72,"halves":{"front":26,"back":29,"front_gross":62,"back_gross":65},"diff_equiv":50.6,"differential":50.6,"diff_kind":"ndb_adjusted","rated":true,"b18":49.7,"sg":null,"sg_ttg":null,"tee":null,"fir":null,"gir":null,"putts":null,"putts_recorded":24,"putts_partial":true,"dbl":16,"tier":"B","flags":["putts_partial"],"demo":false,"card":[{"h":1,"par":4,"si":6,"s":7,"p":null,"fw":null,"g":null,"pen":null},{"h":2,"par":4,"si":14,"s":8,"p":null,"fw":null,"g":null,"pen":null},{"h":3,"par":3,"si":12,"s":8,"p":null,"fw":null,"g":null,"pen":null},{"h":4,"par":4,"si":18,"s":7,"p":null,"fw":null,"g":null,"pen":null},{"h":5,"par":5,"si":10,"s":8,"p":null,"fw":null,"g":null,"pen":null},{"h":6,"par":3,"si":8,"s":3,"p":null,"fw":null,"g":null,"pen":null},{"h":7,"par":4,"si":2,"s":6,"p":null,"fw":null,"g":null,"pen":null},{"h":8,"par":5,"si":16,"s":8,"p":null,"fw":null,"g":null,"pen":null},{"h":9,"par":4,"si":4,"s":7,"p":null,"fw":null,"g":null,"pen":null},{"h":10,"par":4,"si":13,"s":7,"p":null,"fw":null,"g":null,"pen":null},{"h":11,"par":4,"si":1,"s":8,"p":null,"fw":null,"g":null,"pen":null},{"h":12,"par":5,"si":15,"s":10,"p":null,"fw":null,"g":null,"pen":null},{"h":13,"par":4,"si":17,"s":7,"p":null,"fw":null,"g":null,"pen":null},{"h":14,"par":4,"si":3,"s":6,"p":null,"fw":null,"g":null,"pen":null},{"h":15,"par":3,"si":7,"s":4,"p":null,"fw":null,"g":null,"pen":null},{"h":16,"par":5,"si":11,"s":9,"p":null,"fw":null,"g":null,"pen":null},{"h":17,"par":3,"si":9,"s":6,"p":null,"fw":null,"g":null,"pen":null},{"h":18,"par":4,"si":5,"s":8,"p":null,"fw":null,"g":null,"pen":null}],"baseline":{"n":9,"to_par_9":25.7,"fir":0.3214,"gir":0.127,"putts_9":26.5714}},{"id":"r9","date":"2026-08-20","course":"Oyster Bay Golf Links","view":"other","mapped":true,"holes":18,"nine":null,"entry_mode":"hole_by_hole","source":"18b_export","gross":131,"to_par":61,"to_par_9":30.5,"par":70,"halves":{"front":31,"back":30,"front_gross":66,"back_gross":65},"diff_equiv":59.7,"differential":59.7,"diff_kind":"ndb_adjusted","rated":true,"b18":60.1,"sg":null,"sg_ttg":null,"tee":"White","fir":null,"gir":null,"putts":null,"putts_recorded":38,"putts_partial":true,"dbl":17,"tier":"B","flags":["putts_partial"],"demo":false,"card":[{"h":1,"par":4,"si":7,"s":8,"p":null,"fw":null,"g":null,"pen":null},{"h":2,"par":4,"si":1,"s":8,"p":null,"fw":null,"g":null,"pen":null},{"h":3,"par":4,"si":3,"s":8,"p":null,"fw":null,"g":null,"pen":null},{"h":4,"par":3,"si":11,"s":6,"p":null,"fw":null,"g":null,"pen":null},{"h":5,"par":5,"si":9,"s":9,"p":null,"fw":null,"g":null,"pen":null},{"h":6,"par":3,"si":17,"s":4,"p":null,"fw":null,"g":null,"pen":null},{"h":7,"par":4,"si":13,"s":8,"p":null,"fw":null,"g":null,"pen":null},{"h":8,"par":3,"si":15,"s":6,"p":null,"fw":null,"g":null,"pen":null},{"h":9,"par":5,"si":5,"s":9,"p":null,"fw":null,"g":null,"pen":null},{"h":10,"par":4,"si":4,"s":8,"p":null,"fw":null,"g":null,"pen":null},{"h":11,"par":4,"si":6,"s":8,"p":null,"fw":null,"g":null,"pen":null},{"h":12,"par":4,"si":18,"s":8,"p":null,"fw":null,"g":null,"pen":null},{"h":13,"par":4,"si":14,"s":7,"p":null,"fw":null,"g":null,"pen":null},{"h":14,"par":5,"si":16,"s":8,"p":null,"fw":null,"g":null,"pen":null},{"h":15,"par":3,"si":8,"s":5,"p":null,"fw":null,"g":null,"pen":null},{"h":16,"par":4,"si":2,"s":8,"p":null,"fw":null,"g":null,"pen":null},{"h":17,"par":3,"si":10,"s":5,"p":null,"fw":null,"g":null,"pen":null},{"h":18,"par":4,"si":12,"s":8,"p":null,"fw":null,"g":null,"pen":null}],"baseline":{"n":8,"to_par_9":24.5,"fir":0.3214,"gir":0.127,"putts_9":26.5714}},{"id":"r8","date":"2026-08-18","course":"Southborough Golf Club","view":"c1","mapped":true,"holes":9,"nine":"front","entry_mode":"hole_by_hole","source":"18b_export","gross":57,"to_par":22,"to_par_9":22.0,"par":35,"halves":null,"diff_equiv":49.8,"differential":52.8,"diff_kind":"nine_hole_scaled","rated":true,"b18":49.8,"sg":null,"sg_ttg":null,"tee":"White","fir":null,"gir":null,"putts":null,"putts_recorded":20,"putts_partial":true,"dbl":8,"tier":"B","flags":["putts_partial"],"demo":false,"card":[{"h":1,"par":4,"si":3,"s":8,"p":null,"fw":null,"g":null,"pen":null},{"h":2,"par":3,"si":9,"s":5,"p":null,"fw":null,"g":null,"pen":null},{"h":3,"par":5,"si":5,"s":9,"p":null,"fw":null,"g":null,"pen":null},{"h":4,"par":4,"si":2,"s":6,"p":null,"fw":null,"g":null,"pen":null},{"h":5,"par":4,"si":1,"s":6,"p":null,"fw":null,"g":null,"pen":null},{"h":6,"par":4,"si":8,"s":6,"p":null,"fw":null,"g":null,"pen":null},{"h":7,"par":3,"si":6,"s":3,"p":null,"fw":null,"g":null,"pen":null},{"h":8,"par":4,"si":7,"s":6,"p":null,"fw":null,"g":null,"pen":null},{"h":9,"par":4,"si":4,"s":8,"p":null,"fw":null,"g":null,"pen":null}],"baseline":{"n":7,"to_par_9":24.8571,"fir":0.3214,"gir":0.127,"putts_9":26.5714}},{"id":"r7","date":"2026-08-17","course":"Southborough Golf Club","view":"c1","mapped":true,"holes":9,"nine":"front","entry_mode":"hole_by_hole","source":"18b_export","gross":62,"to_par":27,"to_par_9":27.0,"par":35,"halves":null,"diff_equiv":59.8,"differential":57.3,"diff_kind":"nine_hole_scaled","rated":true,"b18":59.8,"sg":null,"sg_ttg":null,"tee":"White","fir":null,"gir":[2,9],"putts":22,"putts_recorded":22,"putts_partial":false,"dbl":9,"tier":"B","flags":[],"demo":false,"card":[{"h":1,"par":4,"si":3,"s":6,"p":null,"fw":null,"g":null,"pen":null},{"h":2,"par":3,"si":9,"s":6,"p":null,"fw":null,"g":null,"pen":null},{"h":3,"par":5,"si":5,"s":9,"p":null,"fw":null,"g":null,"pen":null},{"h":4,"par":4,"si":2,"s":6,"p":null,"fw":null,"g":null,"pen":null},{"h":5,"par":4,"si":1,"s":8,"p":null,"fw":null,"g":null,"pen":null},{"h":6,"par":4,"si":8,"s":8,"p":null,"fw":null,"g":null,"pen":null},{"h":7,"par":3,"si":6,"s":6,"p":null,"fw":null,"g":null,"pen":null},{"h":8,"par":4,"si":7,"s":7,"p":null,"fw":null,"g":null,"pen":null},{"h":9,"par":4,"si":4,"s":6,"p":null,"fw":null,"g":null,"pen":null}],"baseline":{"n":6,"to_par_9":24.5,"fir":0.3214,"gir":0.1111,"putts_9":27.3333}},{"id":"r6","date":"2026-08-14","course":"Southborough Golf Club","view":"c1","mapped":true,"holes":9,"nine":"front","entry_mode":"hole_by_hole","source":"18b_export","gross":62,"to_par":27,"to_par_9":27.0,"par":35,"halves":null,"diff_equiv":59.8,"differential":57.3,"diff_kind":"nine_hole_scaled","rated":true,"b18":59.8,"sg":-30.26,"sg_ttg":-24.17,"tee":null,"fir":[2,7],"gir":[0,9],"putts":24,"putts_recorded":24,"putts_partial":false,"dbl":7,"tier":"B","flags":[],"demo":false,"card":[{"h":1,"par":4,"si":3,"s":8,"p":null,"fw":null,"g":null,"pen":null},{"h":2,"par":3,"si":9,"s":6,"p":null,"fw":null,"g":null,"pen":null},{"h":3,"par":5,"si":5,"s":6,"p":null,"fw":null,"g":null,"pen":null},{"h":4,"par":4,"si":2,"s":7,"p":null,"fw":null,"g":null,"pen":null},{"h":5,"par":4,"si":1,"s":8,"p":null,"fw":null,"g":null,"pen":null},{"h":6,"par":4,"si":8,"s":8,"p":null,"fw":null,"g":null,"pen":null},{"h":7,"par":3,"si":6,"s":4,"p":null,"fw":null,"g":null,"pen":null},{"h":8,"par":4,"si":7,"s":8,"p":null,"fw":null,"g":null,"pen":null},{"h":9,"par":4,"si":4,"s":7,"p":null,"fw":null,"g":null,"pen":null}],"baseline":{"n":5,"to_par_9":24.0,"fir":0.3333,"gir":0.1333,"putts_9":28.0}},{"id":"r5","date":"2026-08-12","course":"Southborough Golf Club","view":"c1","mapped":true,"holes":9,"nine":"front","entry_mode":"hole_by_hole","source":"18b_export","gross":56,"to_par":21,"to_par_9":21.0,"par":35,"halves":null,"diff_equiv":47.8,"differential":51.3,"diff_kind":"nine_hole_scaled","rated":true,"b18":47.8,"sg":null,"sg_ttg":null,"tee":"White","fir":null,"gir":[1,9],"putts":22,"putts_recorded":22,"putts_partial":false,"dbl":5,"tier":"B","flags":[],"demo":false,"card":[{"h":1,"par":4,"si":3,"s":5,"p":null,"fw":null,"g":null,"pen":null},{"h":2,"par":3,"si":9,"s":6,"p":null,"fw":null,"g":null,"pen":null},{"h":3,"par":5,"si":5,"s":6,"p":null,"fw":null,"g":null,"pen":null},{"h":4,"par":4,"si":2,"s":8,"p":null,"fw":null,"g":null,"pen":null},{"h":5,"par":4,"si":1,"s":8,"p":null,"fw":null,"g":null,"pen":null},{"h":6,"par":4,"si":8,"s":8,"p":null,"fw":null,"g":null,"pen":null},{"h":7,"par":3,"si":6,"s":4,"p":null,"fw":null,"g":null,"pen":null},{"h":8,"par":4,"si":7,"s":5,"p":null,"fw":null,"g":null,"pen":null},{"h":9,"par":4,"si":4,"s":6,"p":null,"fw":null,"g":null,"pen":null}],"baseline":{"n":4,"to_par_9":24.75,"fir":0.3333,"gir":0.1389,"putts_9":29.5}},{"id":"r4","date":"2026-08-10","course":"Southborough Golf Club","view":"c1","mapped":true,"holes":9,"nine":"front","entry_mode":"hole_by_hole","source":"18b_export","gross":58,"to_par":23,"to_par_9":23.0,"par":35,"halves":null,"diff_equiv":51.8,"differential":53.3,"diff_kind":"nine_hole_scaled","rated":true,"b18":51.8,"sg":null,"sg_ttg":null,"tee":"White","fir":null,"gir":[2,9],"putts":24,"putts_recorded":24,"putts_partial":false,"dbl":7,"tier":"B","flags":[],"demo":false,"card":[{"h":1,"par":4,"si":3,"s":4,"p":null,"fw":null,"g":null,"pen":null},{"h":2,"par":3,"si":9,"s":6,"p":null,"fw":null,"g":null,"pen":null},{"h":3,"par":5,"si":5,"s":5,"p":null,"fw":null,"g":null,"pen":null},{"h":4,"par":4,"si":2,"s":8,"p":null,"fw":null,"g":null,"pen":null},{"h":5,"par":4,"si":1,"s":8,"p":null,"fw":null,"g":null,"pen":null},{"h":6,"par":4,"si":8,"s":6,"p":null,"fw":null,"g":null,"pen":null},{"h":7,"par":3,"si":6,"s":5,"p":null,"fw":null,"g":null,"pen":null},{"h":8,"par":4,"si":7,"s":8,"p":null,"fw":null,"g":null,"pen":null},{"h":9,"par":4,"si":4,"s":8,"p":null,"fw":null,"g":null,"pen":null}],"baseline":{"n":3,"to_par_9":25.3333,"fir":0.3333,"gir":0.1111,"putts_9":31.3333}},{"id":"r3","date":"2026-08-05","course":"Southborough Golf Club","view":"c1","mapped":true,"holes":9,"nine":"front","entry_mode":"hole_by_hole","source":"18b_export","gross":56,"to_par":21,"to_par_9":21.0,"par":35,"halves":null,"diff_equiv":47.8,"differential":51.3,"diff_kind":"nine_hole_scaled","rated":true,"b18":47.8,"sg":-24.27,"sg_ttg":-17.96,"tee":null,"fir":[2,7],"gir":[2,9],"putts":24,"putts_recorded":24,"putts_partial":false,"dbl":6,"tier":"B","flags":[],"demo":false,"card":[{"h":1,"par":4,"si":3,"s":8,"p":null,"fw":null,"g":null,"pen":null},{"h":2,"par":3,"si":9,"s":6,"p":null,"fw":null,"g":null,"pen":null},{"h":3,"par":5,"si":5,"s":8,"p":null,"fw":null,"g":null,"pen":null},{"h":4,"par":4,"si":2,"s":7,"p":null,"fw":null,"g":null,"pen":null},{"h":5,"par":4,"si":1,"s":5,"p":null,"fw":null,"g":null,"pen":null},{"h":6,"par":4,"si":8,"s":5,"p":null,"fw":null,"g":null,"pen":null},{"h":7,"par":3,"si":6,"s":6,"p":null,"fw":null,"g":null,"pen":null},{"h":8,"par":4,"si":7,"s":5,"p":null,"fw":null,"g":null,"pen":null},{"h":9,"par":4,"si":4,"s":6,"p":null,"fw":null,"g":null,"pen":null}],"baseline":{"n":2,"to_par_9":27.5,"fir":0.3571,"gir":0.0556,"putts_9":35.0}},{"id":"r2","date":"2026-07-15","course":"Southborough Golf Club","view":"c1","mapped":true,"holes":9,"nine":"front","entry_mode":"hole_by_hole","source":"18b_export","gross":58,"to_par":23,"to_par_9":23.0,"par":35,"halves":null,"diff_equiv":51.8,"differential":53.3,"diff_kind":"nine_hole_scaled","rated":true,"b18":51.8,"sg":-26.52,"sg_ttg":-13.43,"tee":null,"fir":[3,7],"gir":[0,9],"putts":31,"putts_recorded":31,"putts_partial":false,"dbl":6,"tier":"B","flags":[],"demo":false,"card":[{"h":1,"par":4,"si":3,"s":7,"p":null,"fw":null,"g":null,"pen":null},{"h":2,"par":3,"si":9,"s":6,"p":null,"fw":null,"g":null,"pen":null},{"h":3,"par":5,"si":5,"s":8,"p":null,"fw":null,"g":null,"pen":null},{"h":4,"par":4,"si":2,"s":5,"p":null,"fw":null,"g":null,"pen":null},{"h":5,"par":4,"si":1,"s":5,"p":null,"fw":null,"g":null,"pen":null},{"h":6,"par":4,"si":8,"s":8,"p":null,"fw":null,"g":null,"pen":null},{"h":7,"par":3,"si":6,"s":3,"p":null,"fw":null,"g":null,"pen":null},{"h":8,"par":4,"si":7,"s":8,"p":null,"fw":null,"g":null,"pen":null},{"h":9,"par":4,"si":4,"s":8,"p":null,"fw":null,"g":null,"pen":null}],"baseline":{"n":1,"to_par_9":32.0,"fir":0.2857,"gir":0.1111,"putts_9":39.0}},{"id":"r1","date":"2026-07-08","course":"Southborough Golf Club","view":"c1","mapped":true,"holes":9,"nine":"front","entry_mode":"hole_by_hole","source":"18b_export","gross":67,"to_par":32,"to_par_9":32.0,"par":35,"halves":null,"diff_equiv":69.8,"differential":62.3,"diff_kind":"nine_hole_scaled","rated":true,"b18":41.8,"sg":-35.47,"sg_ttg":-14.38,"tee":null,"fir":[2,7],"gir":[1,9],"putts":39,"putts_recorded":39,"putts_partial":false,"dbl":9,"tier":"B","flags":[],"demo":false,"card":[{"h":1,"par":4,"si":3,"s":8,"p":null,"fw":null,"g":null,"pen":null},{"h":2,"par":3,"si":9,"s":6,"p":null,"fw":null,"g":null,"pen":null},{"h":3,"par":5,"si":5,"s":10,"p":null,"fw":null,"g":null,"pen":null},{"h":4,"par":4,"si":2,"s":7,"p":null,"fw":null,"g":null,"pen":null},{"h":5,"par":4,"si":1,"s":8,"p":null,"fw":null,"g":null,"pen":null},{"h":6,"par":4,"si":8,"s":6,"p":null,"fw":null,"g":null,"pen":null},{"h":7,"par":3,"si":6,"s":6,"p":null,"fw":null,"g":null,"pen":null},{"h":8,"par":4,"si":7,"s":8,"p":null,"fw":null,"g":null,"pen":null},{"h":9,"par":4,"si":4,"s":8,"p":null,"fw":null,"g":null,"pen":null}],"baseline":null}],"quality":{"demo":false,"export":{"snapshot_date":"2026-09-25","age_days":2,"future":false,"source":"snapshot"},"unmapped_clubs":[],"unrated_rounds":0,"no_history":0,"flagged_rounds":[],"partial_putts":[{"id":"r8","date":"2026-08-18","putts":20,"holes":9},{"id":"r9","date":"2026-08-20","putts":38,"holes":18},{"id":"r10","date":"2026-08-22","putts":24,"holes":18},{"id":"r13","date":"2026-09-15","putts":10,"holes":9},{"id":"r14","date":"2026-09-19","putts":7,"holes":9},{"id":"r15","date":"2026-09-19","putts":14,"holes":9}],"excluded_rounds":0,"abandoned_rounds":0,"pending_events":0,"pending_extractions":0,"tiers":{"A":16,"B":16,"C":0},"include_nine":true,"items":[{"level":"ok","text":"The last 18Birdies export is 2 days old."},{"level":"info","text":"6 rounds with putts entered on only some holes (fewer putts than holes, or 18Birdies shows holes without putts): shown as partial and left out of every putting stat."},{"level":"info","text":"The unofficial Handicap Index includes 9-hole rounds (an unofficial approximation)."}]},"summary":{"putts_partial":6,"outcome":{"n":16,"mean":55.2418,"sd":7.4586,"mad":4.1842,"mad_sigma":6.2034,"mssd_sigma":7.256},"sigma":{"sigma":7.4586,"n":16,"basis":"all rounds (9-hole doubled)","mad_sigma":6.2034,"mssd_sigma":7.256},"tiers":{"A":16,"B":16,"C":0}},"caddie_url":"caddie\/"}</script>
+<script>
+(function () {
+  'use strict';
+  const D = JSON.parse(document.getElementById('golf-data').textContent);
+  const SVGNS = (function () { const d = document.createElement('div'); d.innerHTML = '<svg></svg>'; return d.firstChild.namespaceURI; })();
+  const $ = (sel) => document.querySelector(sel);
+  const DAY = 864e5;
+  const MINUS = '−';
+  const DASH = '—';
+  const MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+  // ------------------------------------------------------------------ helpers
+  function h(tag, attrs, kids) {
+    const el = document.createElement(tag);
+    if (attrs) for (const k of Object.keys(attrs)) {
+      const v = attrs[k];
+      if (v == null || v === false) continue;
+      if (k === 'class') el.className = v;
+      else if (k === 'text') el.textContent = v;
+      else if (k.slice(0, 2) === 'on') el.addEventListener(k.slice(2), v);
+      else el.setAttribute(k, v === true ? '' : v);
+    }
+    for (const c of [].concat(kids == null ? [] : kids)) {
+      if (c == null || c === false) continue;
+      el.append(c instanceof Node ? c : document.createTextNode(String(c)));
+    }
+    return el;
+  }
+  function sv(tag, attrs, parent) {
+    const el = document.createElementNS(SVGNS, tag);
+    if (attrs) for (const k of Object.keys(attrs)) {
+      const v = attrs[k];
+      if (v == null) continue;
+      if (k === 'text') el.textContent = v; else el.setAttribute(k, v);
+    }
+    if (parent) parent.append(el);
+    return el;
+  }
+  const T = (iso) => Date.UTC(+iso.slice(0, 4), +iso.slice(5, 7) - 1, +iso.slice(8, 10));
+  const fDate = (iso) => { const d = new Date(T(iso)); return MON[d.getUTCMonth()] + ' ' + d.getUTCDate() + ', ' + d.getUTCFullYear(); };
+  const fShort = (iso) => { const d = new Date(T(iso)); return MON[d.getUTCMonth()] + ' ' + d.getUTCDate(); };
+  const f1 = (x) => x == null ? DASH : x.toFixed(1).replace('-', MINUS);
+  const f2 = (x) => x == null ? DASH : x.toFixed(2).replace('-', MINUS);
+  const sgn = (x, d) => { if (x == null) return DASH; const s = Math.abs(x).toFixed(d == null ? 1 : d); return (+s === 0 ? '' : x > 0 ? '+' : MINUS) + s; };
+  const sgnInt = (x) => x == null ? DASH : x === 0 ? 'E' : (x > 0 ? '+' : MINUS) + Math.abs(x);
+  const pc = (x) => x == null ? DASH : Math.round(x * 100) + '%';
+  const yd = (x) => x == null ? DASH : String(Math.round(x));
+  const plural = (n, w) => n + ' ' + w + (n === 1 ? '' : 's');
+  const cap = (s) => s ? s.charAt(0).toUpperCase() + s.slice(1) : s;
+  function scale(d0, d1, r0, r1) { const k = (r1 - r0) / ((d1 - d0) || 1); return (v) => r0 + (v - d0) * k; }
+  function nice(lo, hi, n) {
+    if (!(hi > lo)) { lo -= 1; hi += 1; }
+    const raw = (hi - lo) / Math.max(1, n);
+    const mag = Math.pow(10, Math.floor(Math.log10(raw)));
+    const r = raw / mag;
+    const step = (r <= 1 ? 1 : r <= 2 ? 2 : r <= 2.5 ? 2.5 : r <= 5 ? 5 : 10) * mag;
+    const a = Math.floor(lo / step + 1e-9) * step, b = Math.ceil(hi / step - 1e-9) * step;
+    const ticks = [];
+    for (let i = 0; a + i * step <= b + step / 1e6; i++) ticks.push(+(a + i * step).toFixed(10));
+    return { lo: a, hi: b, ticks: ticks, step: step };
+  }
+  function monthTicks(x0, x1, maxN) {
+    const all = [];
+    const d = new Date(x0);
+    let y = d.getUTCFullYear(), m = d.getUTCMonth() + 1;
+    for (;;) { if (m > 11) { m = 0; y++; } const t = Date.UTC(y, m, 1); if (t > x1) break; all.push(t); m++; }
+    const step = [1, 2, 3, 4, 6, 12].find((k) => Math.ceil(all.length / k) <= maxN) || 12;
+    const ticks = all.filter((t) => new Date(t).getUTCMonth() % step === 0);
+    return ticks.length ? ticks : all.slice(0, 1);
+  }
+  function xAxis(svg, X, x0, x1, y, W) {
+    sv('line', { x1: X(x0), x2: X(x1), y1: y, y2: y, class: 'axis' }, svg);
+    const maxN = Math.max(2, Math.floor((X(x1) - X(x0)) / 58));
+    monthTicks(x0, x1, maxN).forEach((t, i) => {
+      const x = X(t);
+      const dt = new Date(t);
+      const label = MON[dt.getUTCMonth()] + (i === 0 || dt.getUTCMonth() === 0 ? ' ' + dt.getUTCFullYear() : '');
+      const half = label.length * 3.1;
+      const anchor = x - half < 2 ? 'start' : x + half > W - 2 ? 'end' : 'middle';
+      sv('line', { x1: x, x2: x, y1: y, y2: y + 4, class: 'axis' }, svg);
+      sv('text', { x: x, y: y + 16, 'text-anchor': anchor, class: 'tick', text: label }, svg);
+    });
+  }
+  function linePath(pts) { return pts.map((p, i) => (i ? 'L' : 'M') + p[0].toFixed(1) + ',' + p[1].toFixed(1)).join(''); }
+  // Rounds on the same date get nudged apart (6 px between neighbours) so both markers show.
+  function dodge(dates) {
+    const groups = {};
+    dates.forEach((d, i) => { (groups[d] = groups[d] || []).push(i); });
+    const off = dates.map(() => 0);
+    Object.keys(groups).forEach((d) => { const ix = groups[d]; if (ix.length > 1) ix.forEach((i, k) => { off[i] = (k - (ix.length - 1) / 2) * 6; }); });
+    return off;
+  }
+  // A round's marker: a dot for 9 holes, a square for 18 (a second channel besides the tooltip).
+  function roundMark(svg, x, y, full, cls, r) {
+    const s = r || 4.5;
+    if (full) return sv('rect', { x: x - s, y: y - s, width: 2 * s, height: 2 * s, rx: 1.5, class: cls }, svg);
+    return sv('circle', { cx: x, cy: y, r: s, class: cls }, svg);
+  }
+
+  // ------------------------------------------------------------------ tooltip
+  const tip = $('#tooltip');
+  function showTip(rows, x, y) {
+    tip.replaceChildren();
+    rows.forEach((r) => {
+      if (!r) return;
+      if (r.head) { tip.append(h('div', { class: 'tt-head', text: r.head })); return; }
+      if (r.note) { tip.append(h('div', { class: 'tt-note', text: r.note })); return; }
+      tip.append(h('div', { class: 'tt-row' }, [
+        r.key ? h('span', { class: 'tt-key k-' + r.key }) : null,
+        r.value != null ? h('strong', { text: String(r.value) }) : null,
+        r.label ? h('span', { class: 'tt-label', text: r.label }) : null,
+      ]));
+    });
+    tip.hidden = false;
+    const b = tip.getBoundingClientRect();
+    let left = x + 14, top = y + 14;
+    if (left + b.width > window.innerWidth - 8) left = x - b.width - 14;
+    if (left < 8) left = 8;
+    if (top + b.height > window.innerHeight - 8) top = y - b.height - 14;
+    if (top < 8) top = 8;
+    tip.style.left = left + 'px';
+    tip.style.top = top + 'px';
+  }
+  function hideTip() { tip.hidden = true; }
+  document.addEventListener('pointerdown', (e) => { if (!e.target.closest || !e.target.closest('svg')) hideTip(); });
+  window.addEventListener('scroll', hideTip, { passive: true });
+  function tipAt(el, rows) {
+    const r = el.getBoundingClientRect();
+    showTip(rows, r.left + r.width / 2, r.top + r.height / 2);
+  }
+  function hoverable(el, rows) {
+    el.setAttribute('tabindex', '0');
+    el.addEventListener('pointerenter', (e) => showTip(rows(), e.clientX, e.clientY));
+    el.addEventListener('pointermove', (e) => showTip(rows(), e.clientX, e.clientY));
+    el.addEventListener('pointerdown', (e) => showTip(rows(), e.clientX, e.clientY));
+    el.addEventListener('pointerleave', (e) => { if (e.pointerType === 'mouse') hideTip(); });
+    el.addEventListener('focus', () => tipAt(el, rows()));
+    el.addEventListener('blur', hideTip);
+  }
+  // Crosshair + nearest-round tooltip for time charts; arrow keys step through rounds.
+  function crosshair(svg, o) {
+    const cross = sv('line', { y1: o.top, y2: o.bot, class: 'cross', visibility: 'hidden' }, svg);
+    const ring = sv('circle', { r: o.ring || 8, class: 'ring', visibility: 'hidden' }, svg);
+    const ov = sv('rect', { x: o.l, y: o.top, width: Math.max(0, o.W - o.l - o.r), height: o.bot - o.top, class: 'hit', tabindex: 0, 'aria-label': o.label }, svg);
+    let cur = -1;
+    function select(i, cx, cy) {
+      cur = i;
+      const x = o.x(i), y = o.y(i);
+      cross.setAttribute('x1', x); cross.setAttribute('x2', x); cross.setAttribute('visibility', 'visible');
+      if (y != null) { ring.setAttribute('cx', x); ring.setAttribute('cy', y); ring.setAttribute('visibility', 'visible'); } else ring.setAttribute('visibility', 'hidden');
+      if (cx == null) { const r = svg.getBoundingClientRect(); cx = r.left + x * (r.width / o.W); cy = r.top + (y == null ? o.top : y) * (r.height / o.H); }
+      showTip(o.rows(i), cx, cy);
+    }
+    function clear() { cross.setAttribute('visibility', 'hidden'); ring.setAttribute('visibility', 'hidden'); hideTip(); }
+    function pick(ev) {
+      const r = svg.getBoundingClientRect();
+      const px = (ev.clientX - r.left) * (o.W / r.width);
+      const py = (ev.clientY - r.top) * (o.H / r.height);
+      let bd = Infinity;
+      for (let i = 0; i < o.n; i++) bd = Math.min(bd, Math.abs(o.x(i) - px));
+      // Two rounds on one day sit (nearly) on the same x: the pointer's height picks between them.
+      let bi = 0, by = Infinity;
+      for (let i = 0; i < o.n; i++) {
+        if (Math.abs(o.x(i) - px) - bd > 1.5) continue;
+        const yi = o.y(i);
+        const dy = yi == null ? 0 : Math.abs(yi - py);
+        if (dy < by) { by = dy; bi = i; }
+      }
+      select(bi, ev.clientX, ev.clientY);
+    }
+    ov.addEventListener('pointermove', pick);
+    ov.addEventListener('pointerdown', pick);
+    ov.addEventListener('pointerleave', (e) => { if (e.pointerType === 'mouse') clear(); });
+    ov.addEventListener('focus', () => select(cur < 0 ? o.n - 1 : cur));
+    ov.addEventListener('blur', clear);
+    ov.addEventListener('keydown', (e) => {
+      if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') {
+        e.preventDefault();
+        select(cur < 0 ? o.n - 1 : Math.max(0, Math.min(o.n - 1, cur + (e.key === 'ArrowRight' ? 1 : -1))));
+      } else if (e.key === 'Escape') clear();
+    });
+  }
+
+  // ------------------------------------------------------------------ shared state
+  const metric = D.metric || { key: 'differential', short: 'differential', label: 'Score differential' };
+  const score = D.score || { short: 'to par per 9', label: 'Strokes over par per 9 holes' };
+  const courses = D.courses || [{ key: 'all', label: 'All courses', n: D.rounds.length }];
+  let VK = 'all';
+  const V = () => (VK === 'all' || !D.views || !D.views[VK]) ? D : D.views[VK];
+  const courseLabel = () => (courses.find((c) => c.key === VK) || courses[0]).label;
+  const lessonsEv = D.events.filter((e) => e.type === 'lesson' && !e.planned);
+  function lessonIndex() {
+    const idx = {};
+    (V().lessons.lessons || []).forEach((l) => { idx[l.event_id] = l.index; });
+    return idx;
+  }
+  const DOM = (function () {
+    const ds = [];
+    D.rounds.forEach((r) => ds.push(T(r.date)));
+    D.events.forEach((e) => { ds.push(T(e.start)); ds.push(T(e.end)); });
+    D.spans.injury.forEach((s) => { ds.push(T(s.start)); ds.push(T(s.end)); });
+    if (!ds.length) return null;
+    let a = Math.min.apply(null, ds), b = Math.max.apply(null, ds);
+    if (b - a < 30 * DAY) { a -= 15 * DAY; b += 15 * DAY; } else { const pad = Math.max(4 * DAY, (b - a) * 0.025); a -= pad; b += pad; }
+    return [a, b];
+  })();
+  function heroMargins(W) { const narrow = W < 560; return { l: 38, r: narrow ? 12 : 76, t: 28, b: 26, narrow: narrow }; }
+  function spansAt(t) {
+    const out = [];
+    D.spans.practice.forEach((s) => { if (t >= T(s.start) - DAY && t <= T(s.end) + DAY) out.push({ key: 'practice', label: 'during a practice block (' + plural(s.sessions, 'session') + ')' }); });
+    D.spans.injury.forEach((s) => { if (t >= T(s.start) && t <= T(s.end)) out.push({ key: 'injury', label: 'during injury' + (s.body_part ? ': ' + s.body_part : '') }); });
+    return out;
+  }
+  function eventRows(e) {
+    const rows = [{ head: (e.start !== e.end ? fDate(e.start) + ' ' + '–' + ' ' + fDate(e.end) : fDate(e.date)) + (e.planned ? ' (planned)' : '') }];
+    const idx = lessonIndex()[e.id];
+    rows.push({ key: e.lane, value: idx ? 'L' + idx : null, label: e.title });
+    if (e.summary && e.summary !== e.title) rows.push({ note: e.summary });
+    if (e.precision && e.precision !== 'day' && e.precision !== 'exact') rows.push({ note: 'Date precision: ' + e.precision });
+    return rows;
+  }
+  // Lessons, equipment and spans drawn behind a time chart (shared by hero and differential charts).
+  function eventLayer(svg, X, top, bot, withMarkers) {
+    const span = (a, b, cls) => { const xa = X(T(a) - DAY / 2), xb = X(T(b) + DAY / 2); sv('rect', { x: xa, y: top, width: Math.max(3, xb - xa), height: bot - top, class: cls }, svg); };
+    D.spans.practice.forEach((s) => span(s.start, s.end, 'span-practice'));
+    D.spans.injury.forEach((s) => span(s.start, s.end, 'span-injury'));
+    lessonsEv.forEach((e) => sv('line', { x1: X(T(e.date)), x2: X(T(e.date)), y1: withMarkers ? top - 8 : top, y2: bot, class: 'lesson-rule' + (withMarkers ? '' : ' faint') }, svg));
+  }
+  function eventMarkers(svg, X, top, bot) {
+    const idxs = lessonIndex();
+    D.events.filter((e) => e.lane === 'equipment' && !e.planned).forEach((e) => {
+      const x = X(T(e.date));
+      sv('path', { d: 'M' + (x - 5) + ',' + (bot - 1) + ' L' + (x + 5) + ',' + (bot - 1) + ' L' + x + ',' + (bot - 10) + ' Z', class: 'mark-equipment' }, svg);
+      const c = sv('circle', { cx: x, cy: bot - 6, r: 12, class: 'hit', 'aria-label': e.title }, svg);
+      hoverable(c, () => eventRows(e));
+    });
+    lessonsEv.forEach((e) => {
+      const x = X(T(e.date));
+      sv('path', { d: 'M' + x + ',' + (top - 20) + ' l5,5 l-5,5 l-5,-5 Z', class: 'mark-lesson' }, svg);
+      const idx = idxs[e.id];
+      if (idx) sv('text', { x: x + 8, y: top - 11, class: 'lane-label', text: 'L' + idx }, svg);
+      const c = sv('circle', { cx: x, cy: top - 15, r: 12, class: 'hit', 'aria-label': e.title }, svg);
+      hoverable(c, () => eventRows(e));
+    });
+  }
+
+  // ------------------------------------------------------------------ swatches
+  function swatch(kind) {
+    const s = sv('svg', { width: 18, height: 12, viewBox: '0 0 18 12', 'aria-hidden': 'true' });
+    if (kind === 'dot') sv('circle', { cx: 9, cy: 6, r: 4, class: 'dot' }, s);
+    if (kind === 'square') sv('rect', { x: 5, y: 2, width: 8, height: 8, rx: 1.5, class: 'dot' }, s);
+    if (kind === 'b18') sv('circle', { cx: 9, cy: 6, r: 5, class: 'b18' }, s);
+    if (kind === 'trend') { sv('rect', { x: 0, y: 2, width: 18, height: 8, class: 'band' }, s); sv('line', { x1: 1, x2: 17, y1: 6, y2: 6, class: 'trend' }, s); }
+    if (kind === 'hi') sv('line', { x1: 1, x2: 17, y1: 6, y2: 6, class: 'hi-line' }, s);
+    if (kind === 'lesson') sv('line', { x1: 9, x2: 9, y1: 0, y2: 12, class: 'lesson-rule' }, s);
+    if (kind === 'equipment') sv('path', { d: 'M4,11 L14,11 L9,2 Z', class: 'mark-equipment' }, s);
+    if (kind === 'practice') sv('rect', { x: 1, y: 0, width: 16, height: 12, class: 'span-practice' }, s);
+    if (kind === 'injury') sv('rect', { x: 1, y: 0, width: 16, height: 12, class: 'span-injury' }, s);
+    if (kind === 'iqr') sv('rect', { x: 1, y: 4, width: 16, height: 5, rx: 2.5, class: 'iqr' }, s);
+    if (kind === 'median') sv('line', { x1: 9, x2: 9, y1: 1, y2: 11, class: 'median' }, s);
+    if (kind === 'shot') sv('circle', { cx: 9, cy: 6, r: 3, class: 'shot' }, s);
+    if (kind === 'shot-after') sv('circle', { cx: 9, cy: 6, r: 3, class: 'shot after' }, s);
+    if (kind === 'bad') { sv('line', { x1: 6, x2: 12, y1: 3, y2: 9, class: 'bad-shot' }, s); sv('line', { x1: 12, x2: 6, y1: 3, y2: 9, class: 'bad-shot' }, s); }
+    return s;
+  }
+  function legend(box, items) {
+    box.replaceChildren();
+    items.forEach((it) => box.append(h('span', { class: 'key' }, [swatch(it[0]), it[1]])));
+  }
+
+  // ------------------------------------------------------------------ mounting / resize
+  let mounts = [];
+  let raf = 0;
+  const onResize = () => { cancelAnimationFrame(raf); raf = requestAnimationFrame(() => renderAll(false)); };
+  const ro = 'ResizeObserver' in window ? new ResizeObserver(onResize) : null;
+  if (!ro) window.addEventListener('resize', onResize);
+  function mount(box, fn, scope) { mounts.push({ box: box, fn: fn, w: -1, scope: scope || '' }); if (ro) ro.observe(box); }
+  function unmount(scope) {
+    mounts = mounts.filter((m) => { if (m.scope !== scope) return true; if (ro) ro.unobserve(m.box); return false; });
+  }
+  function renderAll(force) {
+    mounts.forEach((m) => {
+      const w = m.box.clientWidth;
+      if (!w) return;
+      if (force || w !== m.w) { m.w = w; m.fn(m.box, w); }
+    });
+  }
+
+  // ------------------------------------------------------------------ header, banner, empty
+  function renderHeader() {
+    $('#title').textContent = 'Golf' + (D.player ? ' · ' + D.player : '');
+    if (typeof D.caddie_url === 'string' && D.caddie_url) {       // the public site, once the Caddie's relay is set up
+      const link = $('#caddie-link');
+      link.setAttribute('href', D.caddie_url);
+      link.hidden = false;
+    }
+    document.title = 'Golf Dashboard' + (D.is_demo ? ' (demo)' : '');
+    $('#meta').textContent = (D.data_through ? 'Rounds through ' + fDate(D.data_through) + ' · ' : '') + plural(D.rounds.length, 'round') + ' · scores per 9 holes' + (D.public ? '' : ' · built ' + fShort(D.today) + ' on this Mac');
+    $('#footer').textContent = D.public ? 'A self-contained page: it makes no network requests. Handicap figures are unofficial.'
+      : 'Built locally from golf.db. This page is self-contained and makes no network requests.';
+    if (D.is_demo) {
+      $('#banner').append(h('div', { class: 'banner', role: 'note' }, [
+        h('span', { class: 'icon-warning', 'aria-hidden': 'true', text: '▲' }),
+        h('div', null, [h('strong', { text: 'Demo data. ' }), 'Everything on this page is synthetic (ids start with demo-).' + (D.public ? '' : ' Clear it before importing your real rounds.')]),
+      ]));
+    }
+  }
+  function renderEmpty() {
+    const box = $('#empty-card');
+    box.hidden = false;
+    const steps = D.public ? [h('p', { class: 'sub', text: 'Rounds appear here once they have been imported.' })] : [
+      h('p', { class: 'sub', text: 'Once rounds are in golf.db this page fills in. To get there:' }),
+      h('ol', null, [
+        h('li', null, ['Download your 18Birdies export (18birdies.com, Download account data) and save it in ', h('code', { text: 'data/raw/18birdies/' }), '.']),
+        h('li', null, ['Import it with ', h('code', { text: 'golf import-18b <file>' }), ', then run ', h('code', { text: 'golf recompute' }), '.']),
+        h('li', null, ['Rebuild this page with ', h('code', { text: 'golf build' }), ' and reload.']),
+      ]),
+      h('p', { class: 'sub', text: 'Lessons and practice appear on the timeline after a notes sync, even before any rounds are imported.' }),
+    ];
+    box.append(h('div', { class: 'empty' }, [h('h2', { text: 'No rounds yet' })].concat(steps)));
+    ['#kpis', '#hero-card', '#diff-card', '#lesson-card', '#multiples-card', '#holes-card', '#rounds-card', '#clubs-card'].forEach((s) => { $(s).hidden = true; });
+    if (!D.events.length) $('#timeline-card').hidden = true;
+  }
+
+  // ------------------------------------------------------------------ KPI strip (all courses)
+  function renderKpis() {
+    const box = $('#kpis');
+    D.kpis.forEach((k, i) => {
+      const label = h('div', { class: 'label' }, [
+        k.status === 'warning' ? h('span', { class: 'icon-warning', 'aria-hidden': 'true', text: '▲' }) : null,
+        k.label,
+        k.badge ? h('span', { class: 'badge', text: k.badge }) : null,
+      ]);
+      const d = k.delta;
+      box.append(h('div', { class: 'tile' + (i === 0 ? ' hero' : '') }, [
+        label, h('div', { class: 'value', text: k.display }),
+        d ? h('div', { class: 'delta' + (d.good ? ' good' : d.bad ? ' bad' : '') }, [h('span', { 'aria-hidden': 'true', text: d.good ? '▼ ' : d.bad ? '▲ ' : '' }), d.text]) : null,
+        h('div', { class: 'tsub', text: k.sub }),
+      ]));
+    });
+  }
+
+  // ------------------------------------------------------------------ course filter
+  function renderFilter() {
+    if (courses.length < 2) return;
+    const sel = $('#course');
+    courses.forEach((c) => sel.append(h('option', { value: c.key, text: c.label + ' (' + c.n + ')' })));
+    $('#filters').hidden = false;
+    sel.addEventListener('change', () => { VK = sel.value; renderScoped(); });
+  }
+  function renderScoped() {
+    hideTip();
+    const filtered = VK !== 'all';
+    const note = filtered ? 'All courses: the course filter does not apply here.' : '';
+    $('#timeline-scope').textContent = note;
+    $('#quality-scope').textContent = note;
+    renderHeroFrame();
+    renderDiffFrame();
+    renderLessons();
+    renderMultiples();
+    renderHolesFrame();
+    renderClubs();
+    renderRounds();
+    renderAll(true);
+  }
+
+  // ------------------------------------------------------------------ hero chart: to par per 9
+  function renderHeroFrame() {
+    const H = V().hero;
+    $('#hero-title').textContent = score.label + (VK === 'all' ? '' : ' · ' + courseLabel());
+    const has18 = H.points.some((p) => p.holes === 18);
+    const sub = $('#hero-sub');
+    sub.replaceChildren();
+    if (H.verdict) sub.append(h('p', { class: 'verdict', text: H.verdict }));
+    sub.append(h('p', null, 'Lower is better, so better rounds sit higher. Each dot is a 9-hole round' + (has18
+      ? '; an 18-hole round is a square at half its score to par (the average of its two nines) and weighs twice as much in the trend.' : '.')));
+    const items = [];
+    const tl = H.trend.length ? H.trend[H.trend.length - 1] : null;
+    if (H.points.some((p) => p.holes !== 18)) items.push(['dot', '9-hole round']);
+    if (has18) items.push(['square', '18-hole round (to par ÷ 2)']);
+    items.push(['trend', 'Trend (EWMA) and its 80% noise band' + (tl && tl.y != null ? ' · now ' + sgn(tl.y) : '')]);
+    if (lessonsEv.length) items.push(['lesson', 'Lesson']);
+    if (D.events.some((e) => e.lane === 'equipment' && !e.planned)) items.push(['equipment', 'Equipment change']);
+    if (D.spans.practice.length) items.push(['practice', 'Practice block']);
+    if (D.spans.injury.length) items.push(['injury', 'Injury']);
+    legend($('#hero-legend'), items);
+    $('#hero-foot').textContent = H.missing_note || '';
+  }
+  function heroRows(p, t) {
+    const rows = [{ head: fDate(p.date) + (p.course ? ' · ' + p.course : '') }];
+    rows.push({ key: 'round', value: sgn(p.y, p.holes === 18 ? 1 : 0), label: score.short + (p.holes === 18 ? ' (18 holes, halved)' : '') });
+    rows.push({ value: p.gross, label: 'gross over ' + p.holes + ' holes, ' + sgnInt(p.to_par) + ' to par' + (p.par != null ? ' (par ' + p.par + ')' : '') });
+    if (p.halves) rows.push({ label: 'front nine ' + sgnInt(p.halves.front) + ', back nine ' + sgnInt(p.halves.back) });
+    if (t) rows.push({ key: 'trend', value: sgn(t.y), label: 'trend' + (t.lo != null ? ' (80%: ' + sgn(t.lo) + ' to ' + sgn(t.hi) + ')' : '') });
+    spansAt(T(p.date)).forEach((s) => rows.push({ key: s.key, label: s.label }));
+    return rows;
+  }
+  function renderHero(box, width) {
+    box.replaceChildren();
+    const Hd = V().hero;
+    const pts = Hd.points;
+    if (!pts.length || !DOM) { box.append(h('p', { class: 'muted', text: 'No rounds with a 9- or 18-hole score to par yet.' })); return; }
+    const W = Math.max(260, width);
+    const m = heroMargins(W);
+    const H = m.narrow ? 260 : 320;
+    const x0 = DOM[0], x1 = DOM[1];
+    const X = scale(x0, x1, m.l, W - m.r);
+    const vals = pts.map((p) => p.y);
+    Hd.trend.forEach((t) => { if (t.lo != null) vals.push(t.lo, t.hi); });
+    const ny = nice(Math.min.apply(null, vals), Math.max.apply(null, vals), m.narrow ? 4 : 5);
+    const top = m.t, bot = H - m.b;
+    const Y = scale(ny.lo, ny.hi, top, bot);        // lower (better) scores at the top
+    const last = pts[pts.length - 1];
+    const tr = Hd.trend;
+    const trendLast = tr[tr.length - 1];
+    const svg = sv('svg', { width: W, height: H, viewBox: '0 0 ' + W + ' ' + H, role: 'group',
+      'aria-label': score.label + ' for ' + plural(pts.length, 'round') + ' from ' + fDate(pts[0].date) + ' to ' + fDate(last.date) + (trendLast ? '; latest trend ' + sgn(trendLast.y) : '') + '. Values are listed in the Rounds table.' });
+    eventLayer(svg, X, top, bot, true);
+    ny.ticks.forEach((v) => {
+      const y = Y(v);
+      sv('line', { x1: m.l, x2: W - m.r, y1: y, y2: y, class: 'grid' }, svg);
+      sv('text', { x: m.l - 6, y: y + 4, 'text-anchor': 'end', class: 'tick', text: sgn(v, ny.step >= 1 ? 0 : 1) }, svg);
+    });
+    xAxis(svg, X, x0, x1, bot, W);
+    const banded = tr.filter((t) => t.lo != null);
+    if (banded.length > 1) {
+      const up = banded.map((t) => [X(T(t.date)), Y(t.lo)]);
+      const dn = banded.slice().reverse().map((t) => [X(T(t.date)), Y(t.hi)]);
+      sv('path', { d: linePath(up.concat(dn)) + 'Z', class: 'band' }, svg);
+    }
+    if (tr.length > 1) sv('path', { d: linePath(tr.map((t) => [X(T(t.date)), Y(t.y)])), class: 'trend' }, svg);
+    const off = dodge(pts.map((p) => p.date));
+    const PX = (i) => X(T(pts[i].date)) + off[i];
+    pts.forEach((p, i) => roundMark(svg, PX(i), Y(p.y), p.holes === 18, 'dot'));
+    if (!m.narrow && trendLast) sv('text', { x: X(T(last.date)) + 8, y: Y(trendLast.y) + 4, class: 'end-label', text: 'Trend ' + sgn(trendLast.y) }, svg);
+    crosshair(svg, { W: W, H: H, l: m.l, r: m.r, top: top, bot: bot, n: pts.length, x: PX, y: (i) => Y(pts[i].y),
+      rows: (i) => heroRows(pts[i], tr[i]), label: 'Rounds chart. Use the left and right arrow keys to step through rounds.' });
+    eventMarkers(svg, X, top, bot);
+    box.append(svg);
+  }
+
+  // ------------------------------------------------------------------ differential chart: ours vs 18Birdies
+  function renderDiffFrame() {
+    const Dd = V().diff;
+    const card = $('#diff-card');
+    const anyAll = D.diff && D.diff.points.length;
+    card.hidden = !anyAll || D.empty;
+    if (card.hidden) return;
+    $('#diff-sub').textContent = "Ours counts toward the unofficial Handicap Index (the dashed step line); 18Birdies' own per-round number is the ring, joined to ours by a thin line.";
+    $('#diff-method-text').textContent = 'Each round as an 18-hole score differential. Ours follows the 2024 WHS rules with course ratings from courses.yaml and playing conditions (PCC) not applied: a 9-hole round is its 9-hole differential plus the expected score over the other nine. 18Birdies computes its own number (for a nine it doubles the 9-hole differential), so the two differ most on unusually good or bad nines.';
+    const items = [];
+    if (Dd.n_ours) items.push(['dot', 'Ours (squares: 18 holes)']);
+    if (Dd.n_18b) items.push(['b18', "18Birdies' own number"]);
+    if (Dd.hi.length) items.push(['hi', 'Handicap Index (unofficial)']);
+    if (lessonsEv.length) items.push(['lesson', 'Lesson']);
+    legend($('#diff-legend'), items);
+    $('#diff-foot').textContent = Dd.note || '';
+  }
+  function renderDiff(box, width) {
+    box.replaceChildren();
+    const Dd = V().diff;
+    const pts = Dd.points;
+    if (!pts.length || !DOM) { box.append(h('p', { class: 'muted', text: 'No differentials for this course yet.' })); return; }
+    const W = Math.max(260, width);
+    const m = heroMargins(W);
+    m.t = 12;
+    const H = m.narrow ? 220 : 260;
+    const X = scale(DOM[0], DOM[1], m.l, W - m.r);
+    const vals = [];
+    pts.forEach((p) => { if (p.ours != null) vals.push(p.ours); if (p.b18 != null) vals.push(p.b18); });
+    Dd.hi.forEach((v) => vals.push(v.hi));
+    const ny = nice(Math.min.apply(null, vals), Math.max.apply(null, vals), m.narrow ? 4 : 5);
+    const top = m.t, bot = H - m.b;
+    const Y = scale(ny.lo, ny.hi, top, bot);
+    const svg = sv('svg', { width: W, height: H, viewBox: '0 0 ' + W + ' ' + H, role: 'group',
+      'aria-label': 'Differentials for ' + plural(pts.length, 'round') + ': ' + Dd.n_ours + ' of ours, ' + Dd.n_18b + " of 18Birdies'. Values are listed in the Rounds table." });
+    eventLayer(svg, X, top, bot, false);
+    ny.ticks.forEach((v) => {
+      const y = Y(v);
+      sv('line', { x1: m.l, x2: W - m.r, y1: y, y2: y, class: 'grid' }, svg);
+      sv('text', { x: m.l - 6, y: y + 4, 'text-anchor': 'end', class: 'tick', text: f1(v).replace('.0', '') }, svg);
+    });
+    xAxis(svg, X, DOM[0], DOM[1], bot, W);
+    const his = Dd.hi;
+    const lastT = T(pts[pts.length - 1].date);
+    if (his.length) {
+      const p = [];
+      his.forEach((v, i) => { const x = X(T(v.date)); if (i) p.push([x, Y(his[i - 1].hi)]); p.push([x, Y(v.hi)]); });
+      p.push([X(Math.max(lastT, T(his[his.length - 1].date))), Y(his[his.length - 1].hi)]);
+      sv('path', { d: linePath(p), class: 'hi-line' }, svg);
+      if (!m.narrow) sv('text', { x: X(Math.max(lastT, T(his[his.length - 1].date))) + 8, y: Y(his[his.length - 1].hi) + 4, class: 'end-label', text: 'HI ' + f1(his[his.length - 1].hi) }, svg);
+    }
+    // 18Birdies as a ring, joined to our dot by a thin line so each pair and its gap read at a glance.
+    const off = dodge(pts.map((p) => p.date));
+    const PX = (i) => X(T(pts[i].date)) + off[i];
+    pts.forEach((p, i) => { if (p.b18 != null && p.ours != null) sv('line', { x1: PX(i), x2: PX(i), y1: Y(p.ours), y2: Y(p.b18), class: 'connector' }, svg); });
+    pts.forEach((p, i) => { if (p.b18 != null) sv('circle', { cx: PX(i), cy: Y(p.b18), r: 7, class: 'b18' }, svg); });
+    pts.forEach((p, i) => { if (p.ours != null) roundMark(svg, PX(i), Y(p.ours), p.holes === 18, 'dot'); });
+    function rows(i) {
+      const p = pts[i];
+      const out = [{ head: fDate(p.date) + ' · ' + p.course + ' · ' + p.holes + ' holes, ' + sgnInt(p.to_par) }];
+      out.push({ key: 'round', value: f1(p.ours), label: p.ours == null ? (p.rated ? 'ours: not counted toward the index' : 'ours: needs a course rating') : 'ours' + (p.holes === 9 && p.nine9 != null ? ' (9-hole ' + f1(p.nine9) + ' + expected other nine)' : '') });
+      out.push({ key: 'b18', value: f1(p.b18), label: '18Birdies' });
+      if (p.ours != null && p.b18 != null) out.push({ label: 'difference ' + sgn(p.ours - p.b18) + ' (ours − 18Birdies)' });
+      let hv = null;
+      his.forEach((v) => { if (T(v.date) <= T(p.date)) hv = v.hi; });
+      if (hv != null) out.push({ key: 'hi', value: f1(hv), label: 'Handicap Index after this date (unofficial)' });
+      if (p.kind === 'gross_upper_bound') out.push({ note: 'No hole-by-hole caps: gross used, so ours is an upper bound.' });
+      return out;
+    }
+    crosshair(svg, { W: W, H: H, l: m.l, r: m.r, top: top, bot: bot, n: pts.length, x: PX,
+      y: (i) => pts[i].ours != null ? Y(pts[i].ours) : Y(pts[i].b18), rows: rows, label: 'Differential chart. Use the left and right arrow keys to step through rounds.' });
+    box.append(svg);
+  }
+
+  // ------------------------------------------------------------------ lesson effects
+  function renderLessons() {
+    unmount('lessons');
+    const L = V().lessons;
+    const root = $('#lesson-body');
+    root.replaceChildren();
+    $('#lesson-sub').textContent = 'Average ' + metric.short + ' in the ' + L.n_before + ' rounds before each lesson and the ' + L.n_after +
+      ' rounds after a ' + L.learning_window_days + '-day learning window' + (VK === 'all' ? '' : ', ' + courseLabel() + ' only') + '. Descriptive only: this cannot show what a lesson did.';
+    if (!L.lessons.length) {
+      if (D.public) root.append(h('p', { class: 'muted', text: 'No lessons logged yet.' }));
+      else root.append(h('div', { class: 'empty' }, [
+        h('p', { class: 'muted', text: 'No lessons on the timeline yet. Each lesson you log shows up here with the rounds on either side. Three ways in:' }),
+        h('ol', null, [
+          h('li', null, [h('strong', { text: 'Works now, no API key: ' }), 'Inbox > Quick entry in the local app, or ',
+            h('code', { text: 'golf add "lesson with Mike: grip" --type lesson --date ' + D.today + ' --coach Mike --focus full_swing' }), '.']),
+          h('li', null, [h('strong', { text: 'Apple Notes: ' }), 'in the iCloud Golf folder, one dated line per entry, e.g. ',
+            h('code', { text: D.today + ' lesson w/ Mike: grip, 7i' }), ', then Inbox > Sync the Golf folder (needs a Claude API key in .env).']),
+          h('li', null, [h('strong', { text: 'Notebook pages: ' }), 'photograph each page flat with the date at the top and upload it on Inbox (needs the key; every event waits on Review).']),
+        ]),
+      ]));
+    }
+    root.append(h('p', { class: 'mde', text: L.mde_sentence }));
+    const lv = [], ch = [];
+    L.lessons.forEach((e) => {
+      [e.mean_before, e.mean_after].forEach((v) => { if (v != null) lv.push(v); });
+      [e.before_interval_95, e.after_interval_95].forEach((iv) => { if (iv) lv.push(iv[0], iv[1]); });
+      if (e.interval_95) ch.push(Math.abs(e.interval_95[0]), Math.abs(e.interval_95[1]));
+      if (e.difference != null) ch.push(Math.abs(e.difference));
+      if (e.mde != null) ch.push(e.mde);
+    });
+    const lvDom = lv.length ? nice(Math.min.apply(null, lv), Math.max.apply(null, lv), 4) : null;
+    const M = ch.length ? Math.max.apply(null, ch) * 1.08 : 5;
+    const chDom = nice(-M, M, 4);
+    L.lessons.forEach((e) => {
+      const focus = (e.focus_areas || []).map((f) => cap((f.game_area || '').replace(/_/g, ' ')) + (f.detail ? ': ' + f.detail : ''));
+      const counts = plural(e.n_before, 'round') + ' before · ' + e.n_after + ' after (from ' + fShort(e.after_start) + ')' +
+        (e.n_learning ? ' · ' + e.n_learning + ' in the learning window, not counted' : '');
+      const levelsBox = h('div', { class: 'chart' });
+      const changeBox = h('div', { class: 'chart' });
+      root.append(h('article', { class: 'lesson' }, [
+        h('div', { class: 'lesson-head' }, [
+          h('h3', { text: 'L' + e.index + ' · Lesson on ' + fDate(e.date) }),
+          e.coach ? h('span', { class: 'small muted', text: e.coach }) : null,
+        ]),
+        focus.length ? h('div', { class: 'chips' }, focus.map((f) => h('span', { class: 'chip', text: f }))) : null,
+        h('p', { class: 'small muted', text: counts }),
+        h('div', { class: 'lesson-grid' }, [
+          h('div', null, [h('div', { class: 'mini-cap', text: 'Average ' + metric.short + ', before vs after (95% interval) · ← better' }), levelsBox]),
+          h('div', null, [h('div', { class: 'mini-cap', text: 'Change, after − before (thick 80%, thin 95%) · shaded: within ±MDE' }), changeBox]),
+        ]),
+        h('p', { text: e.summary }),
+        secondaryLine(e),
+        e.flags.length ? h('div', null, e.flags.map((f) => h('div', { class: 'flag' }, [
+          h('span', { class: 'icon-warning', 'aria-hidden': 'true', text: '▲' }),
+          h('span', null, [h('strong', { text: flagName(f) + ': ' }), e.flag_text[f]]),
+        ]))) : null,
+      ]));
+      mount(levelsBox, (b, w) => renderLevels(b, w, e, lvDom), 'lessons');
+      mount(changeBox, (b, w) => renderChange(b, w, e, chDom), 'lessons');
+    });
+    const cav = [
+      h('ul', null, L.caveats.map((c) => h('li', { text: c }))),
+      h('p', { class: 'small muted', text: L.method + (L.sigma != null ? ' σ is the SD of ' + metric.short + ' over ' + L.sigma_basis + ' (n = ' + L.sigma_n + ').' : '') }),
+    ];
+    // While there is nothing to compare, the caveats stay folded away.
+    root.append(L.lessons.length ? h('div', { class: 'caveats' }, [h('h3', { text: 'Read this before trusting any of it' })].concat(cav))
+      : h('details', { class: 'caveats' }, [h('summary', { text: 'How lesson comparisons work, and their limits' })].concat(cav)));
+  }
+  function flagName(f) {
+    return ({ too_few_rounds: 'Too few rounds', regression_to_mean_risk: 'Regression to the mean', confounded_with_equipment_change: 'Equipment change',
+      overlapping_lessons: 'Overlapping lessons', injury_in_window: 'Injury', spans_offseason_gap: 'Long gap' })[f] || f;
+  }
+  function secondaryLine(e) {
+    const s = e.secondary;
+    if (!s) return e.primary_focus ? h('p', { class: 'small muted', text: 'No matching secondary stat for ' + e.primary_focus.replace(/_/g, ' ') + '.' }) : null;
+    const fmt = (v) => s.unit === 'pct' ? pc(v) : f1(v);
+    if (s.mean_before == null || s.mean_after == null) return h('p', { class: 'small muted', text: 'Focus-matched stat (' + s.label.toLowerCase() + '): not recorded on enough rounds on both sides.' });
+    const diff = s.difference;
+    const dtxt = s.unit === 'pct' ? sgn(diff * 100, 0) + ' points' : sgn(diff);
+    const iv = s.interval_80 ? ' (80%: ' + (s.unit === 'pct' ? sgn(s.interval_80[0] * 100, 0) + ' to ' + sgn(s.interval_80[1] * 100, 0) : sgn(s.interval_80[0]) + ' to ' + sgn(s.interval_80[1])) + ')' : '';
+    return h('p', { class: 'small' }, [h('strong', { text: 'Focus-matched stat: ' }),
+      s.label + ' ' + fmt(s.mean_before) + ' → ' + fmt(s.mean_after) + ', ' + dtxt + iv + ' (' + s.n_before + ' v ' + s.n_after + ' rounds; ' + s.better + ' is better).']);
+  }
+  function miniAxis(svg, X, dom, y, W, fmt) {
+    sv('line', { x1: X(dom.lo), x2: X(dom.hi), y1: y, y2: y, class: 'axis' }, svg);
+    const every = dom.ticks.length > 5 && W < 300 ? 2 : 1;
+    dom.ticks.forEach((v, i) => {
+      if (i % every) return;
+      const x = X(v);
+      sv('line', { x1: x, x2: x, y1: y, y2: y + 3, class: 'axis' }, svg);
+      sv('text', { x: x, y: y + 15, 'text-anchor': i === 0 ? 'start' : i === dom.ticks.length - 1 ? 'end' : 'middle', class: 'tick', text: fmt(v) }, svg);
+    });
+  }
+  function renderLevels(box, width, e, dom) {
+    box.replaceChildren();
+    if (!dom || (e.mean_before == null && e.mean_after == null)) { box.append(h('p', { class: 'small muted', text: 'No rounds yet.' })); return; }
+    const W = Math.max(220, width), H = 70, m = { l: 44, r: 8 };
+    const X = scale(dom.lo, dom.hi, m.l, W - m.r);
+    const svg = sv('svg', { width: W, height: H, viewBox: '0 0 ' + W + ' ' + H, role: 'group', 'aria-label': 'Before ' + f1(e.mean_before) + ', after ' + f1(e.mean_after) });
+    dom.ticks.forEach((v) => sv('line', { x1: X(v), x2: X(v), y1: 4, y2: 44, class: 'grid' }, svg));
+    const rows = [['Before', e.mean_before, e.before_interval_95, 'dot-before', 16, e.n_before], ['After', e.mean_after, e.after_interval_95, 'dot-after', 36, e.n_after]];
+    rows.forEach((r) => {
+      sv('text', { x: 0, y: r[4] + 4, class: 'axis-note', text: r[0] }, svg);
+      if (r[1] == null) { sv('text', { x: m.l, y: r[4] + 4, class: 'tick', text: 'no rounds yet' }, svg); return; }
+      if (r[2]) sv('line', { x1: X(r[2][0]), x2: X(r[2][1]), y1: r[4], y2: r[4], class: 'ci' }, svg);
+      sv('circle', { cx: X(r[1]), cy: r[4], r: 5, class: r[3] }, svg);
+      const hit = sv('rect', { x: m.l, y: r[4] - 10, width: W - m.l - m.r, height: 20, class: 'hit', 'aria-label': r[0] + ' average ' + f1(r[1]) }, svg);
+      hoverable(hit, () => [{ head: 'L' + e.index + ' · ' + r[0].toLowerCase() + ' the lesson' }, { key: 'round', value: f1(r[1]), label: 'average ' + metric.short + ' (' + plural(r[5], 'round') + ')' },
+        r[2] ? { label: '95% interval ' + f1(r[2][0]) + ' to ' + f1(r[2][1]) } : null]);
+    });
+    miniAxis(svg, X, dom, 48, W, (v) => f1(v).replace('.0', ''));
+    box.append(svg);
+  }
+  function renderChange(box, width, e, dom) {
+    box.replaceChildren();
+    if (e.difference == null) { box.append(h('p', { class: 'small muted', text: 'Needs at least 2 rounds on each side.' })); return; }
+    const W = Math.max(220, width), H = 70, m = { l: 8, r: 8 };
+    const X = scale(dom.lo, dom.hi, m.l, W - m.r);
+    const svg = sv('svg', { width: W, height: H, viewBox: '0 0 ' + W + ' ' + H, role: 'group', 'aria-label': 'Change ' + sgn(e.difference) });
+    if (e.mde != null) {
+      const a = X(Math.max(dom.lo, -e.mde)), b = X(Math.min(dom.hi, e.mde));
+      sv('rect', { x: a, y: 4, width: b - a, height: 40, class: 'mde-band' }, svg);
+    }
+    sv('line', { x1: X(0), x2: X(0), y1: 4, y2: 44, class: 'zero' }, svg);
+    const y = 24;
+    sv('line', { x1: X(e.interval_95[0]), x2: X(e.interval_95[1]), y1: y, y2: y, class: 'ci-change95' }, svg);
+    sv('line', { x1: X(e.interval_80[0]), x2: X(e.interval_80[1]), y1: y, y2: y, class: 'ci-change80' }, svg);
+    sv('circle', { cx: X(e.difference), cy: y, r: 5.5, class: 'dot-change' }, svg);
+    const hit = sv('rect', { x: m.l, y: 4, width: W - m.l - m.r, height: 40, class: 'hit', 'aria-label': 'Change ' + sgn(e.difference) }, svg);
+    hoverable(hit, () => [{ head: 'L' + e.index + ' · after − before' }, { key: 'lesson', value: sgn(e.difference), label: 'strokes' },
+      { label: '80%: ' + sgn(e.interval_80[0]) + ' to ' + sgn(e.interval_80[1]) }, { label: '95%: ' + sgn(e.interval_95[0]) + ' to ' + sgn(e.interval_95[1]) },
+      e.mde != null ? { label: 'MDE for these windows: ±' + f1(e.mde) } : null]);
+    miniAxis(svg, X, dom, 48, W, (v) => sgn(v, 0));
+    box.append(svg);
+  }
+
+  // ------------------------------------------------------------------ small multiples (per 9)
+  const SIGNED = /^(par\d_avg|to_green_9|putts_over_9)$/;
+  function fmtFor(P) {
+    if (P.unit === 'pct') return pc;
+    if (SIGNED.test(P.key)) return (v) => sgn(v);
+    if (P.key === 'putts_per_gir') return f2;
+    return f1;
+  }
+  function tickFmt(P, step) {
+    if (P.unit === 'pct') return pc;
+    const d = step >= 1 ? 0 : step >= 0.1 ? 1 : 2;
+    if (SIGNED.test(P.key)) return (v) => sgn(v, d);
+    return (v) => v.toFixed(d).replace('-', MINUS);
+  }
+  function renderMultiples() {
+    unmount('multiples');
+    const grid = $('#multiples');
+    grid.replaceChildren();
+    const panels = V().multiples;
+    $('#multiples-sub').textContent = 'Each dot is a 9-hole round' + (panels.some((P) => P.points.some((p) => p.full)) ? ' and each square an 18-hole round scaled to 9 holes' : '') +
+      '; the orange line is the trend.' + (lessonsEv.length ? ' Violet rules mark lessons.' : '') + ' Headline figures pool every round, with 95% Wilson intervals for rates.';
+    $('#identity').textContent = V().identity ? V().identity.sentence : '';
+    $('#multiples-table .table-wrap').replaceChildren();
+    if (!panels.length) { grid.append(h('p', { class: 'muted', text: 'No per-round stats yet: fairways, greens and putts appear once rounds with those stats are imported.' })); $('#multiples-foot').textContent = ''; return; }
+    const groups = {};
+    panels.forEach((P) => {
+      const vals = [];
+      P.points.forEach((p) => { vals.push(p.v); if (p.ewma != null) vals.push(p.ewma); });
+      P._lo = Math.min.apply(null, vals); P._hi = Math.max.apply(null, vals);
+      if (P.group) { const g = groups[P.group] || (groups[P.group] = { span: 0 }); g.span = Math.max(g.span, P._hi - P._lo); }
+    });
+    panels.forEach((P) => {
+      let lo = P._lo, hi = P._hi;
+      if (P.group) {
+        // Same strokes-per-pixel within a group (so swings compare), each centred on its own data.
+        const g = groups[P.group], half = (g.span || 0) / 2, mid = (lo + hi) / 2;
+        lo = mid - half; hi = mid + half;
+      }
+      if (P.unit === 'pct') { lo = Math.max(0, lo - 0.05); hi = Math.min(1, hi + 0.05); }
+      if (P.key === 'gir_9') { lo = Math.max(0, lo); hi = Math.min(9, hi); }
+      const dom = nice(lo, hi, 3);
+      const box = h('div', { class: 'chart' });
+      grid.append(h('div', { class: 'panel' }, [
+        h('div', { class: 'panel-top' }, [h('h3', { text: P.label }), h('span', { class: 'better', text: (P.better === 'lower' ? 'lower' : 'higher') + ' is better' })]),
+        h('div', { class: 'headline', text: P.headline || DASH }),
+        h('div', { class: 'detail', text: 'All rounds pooled' + (P.detail ? ' · ' + P.detail : '') }),
+        box,
+        h('p', { class: 'desc', text: P.desc }),
+      ]));
+      mount(box, (b, w) => renderPanel(b, w, P, dom), 'multiples');
+    });
+    const tiers = D.quality.tiers || {};
+    const partial = (D.quality.partial_putts || []).length;
+    let foot = !panels.some((P) => P.tier === 'C') ? '3-putts, scrambling and putts per green appear once rounds with per-hole stats (from screenshots) are added.'
+      : 'Per-hole panels (3-putts, scrambling, putts per green, penalties) use the ' + plural(tiers.C || 0, 'round') + ' with per-hole stats.';
+    if (partial) foot += ' ' + plural(partial, 'round') + ' with putts entered on only some holes ' + (partial === 1 ? 'is' : 'are') + ' left out of the putting panels.';
+    $('#multiples-foot').textContent = foot;
+    renderMultiplesTable(panels);
+  }
+  function renderPanel(box, width, P, dom) {
+    box.replaceChildren();
+    if (!DOM) return;
+    const W = Math.max(220, width), H = 150, m = { l: 36, r: 8, t: 8, b: 22 };
+    const X = scale(DOM[0], DOM[1], m.l, W - m.r);
+    const inv = P.better === 'lower';
+    const top = m.t, bot = H - m.b;
+    const Y = inv ? scale(dom.lo, dom.hi, top, bot) : scale(dom.lo, dom.hi, bot, top);
+    const fmt = fmtFor(P);
+    const tfmt = tickFmt(P, dom.step);
+    const svg = sv('svg', { width: W, height: H, viewBox: '0 0 ' + W + ' ' + H, role: 'group', 'aria-label': P.label + ', ' + plural(P.points.length, 'round') + '. Values are in the table below.' });
+    dom.ticks.forEach((v) => {
+      sv('line', { x1: m.l, x2: W - m.r, y1: Y(v), y2: Y(v), class: 'grid' }, svg);
+      sv('text', { x: m.l - 5, y: Y(v) + 4, 'text-anchor': 'end', class: 'tick', text: tfmt(v) }, svg);
+    });
+    lessonsEv.forEach((e) => sv('line', { x1: X(T(e.date)), x2: X(T(e.date)), y1: top, y2: bot, class: 'lesson-rule faint' }, svg));
+    xAxis(svg, X, DOM[0], DOM[1], bot, W);
+    const tr = P.points.filter((p) => p.ewma != null);
+    if (tr.length > 1) sv('path', { d: linePath(tr.map((p) => [X(T(p.date)), Y(p.ewma)])), class: 'trend' }, svg);
+    const off = dodge(P.points.map((p) => p.date));
+    const PX = (i) => X(T(P.points[i].date)) + off[i];
+    P.points.forEach((p, i) => roundMark(svg, PX(i), Y(p.v), p.full, 'dot', 4));
+    const nLabel = { fw_chances: 'fairways', gir_chances: 'holes', putt_holes: 'holes with putts', scramble_chances: 'missed greens', gir_putt_holes: 'greens hit', par3_n: 'par 3s', par4_n: 'par 4s', par5_n: 'par 5s' };
+    const wkey = { fir_pct: 'fw_chances', gir_9: 'gir_chances', three_putt_pct: 'putt_holes', one_putt_pct: 'putt_holes', scramble_pct: 'scramble_chances', putts_per_gir: 'gir_putt_holes', par3_avg: 'par3_n', par4_avg: 'par4_n', par5_avg: 'par5_n' }[P.key];
+    const pts = P.points;
+    crosshair(svg, { W: W, H: H, l: m.l, r: m.r, top: top, bot: bot, n: pts.length, ring: 7, x: PX, y: (i) => Y(pts[i].v),
+      rows: (i) => { const p = pts[i]; return [{ head: fDate(p.date) + (p.full ? ' · 18 holes, per 9' : ' · 9 holes') }, { key: 'round', value: fmt(p.v), label: P.label.toLowerCase() + (wkey ? ' (of ' + p.n + ' ' + nLabel[wkey] + ')' : '') },
+        p.ewma != null ? { key: 'trend', value: fmt(p.ewma), label: 'trend' } : null]; },
+      label: P.label + ': arrow keys step through rounds' });
+    box.append(svg);
+  }
+  function renderMultiplesTable(panels) {
+    const byId = {}, order = [];
+    panels.forEach((P) => P.points.forEach((p) => { if (!byId[p.id]) { byId[p.id] = { date: p.date, v: {} }; order.push(p.id); } byId[p.id].v[P.key] = p.v; }));
+    order.sort((a, b) => byId[b].date.localeCompare(byId[a].date));
+    const table = h('table', null, [
+      h('thead', null, h('tr', null, [h('th', { text: 'Date' })].concat(panels.map((P) => h('th', { class: 'num', text: P.label }))))),
+      h('tbody', null, order.map((id) => h('tr', null, [h('td', { text: fDate(byId[id].date) })].concat(panels.map((P) => h('td', { class: 'num', text: byId[id].v[P.key] == null ? DASH : fmtFor(P)(byId[id].v[P.key]) })))))),
+    ]);
+    $('#multiples-table .table-wrap').append(table);
+  }
+
+  // ------------------------------------------------------------------ hole by hole (most-played course)
+  function renderHolesFrame() {
+    const Hh = V().holes;
+    const card = $('#holes-card');
+    const tw = $('#holes-table .table-wrap');
+    tw.replaceChildren();
+    card.hidden = !Hh || D.empty;
+    if (card.hidden) return;
+    $('#holes-title').textContent = 'Hole by hole at ' + Hh.course;
+    $('#holes-sub').textContent = 'Average score to par on each hole over ' + plural(Hh.rounds, 'round') + ' (the bars; taller costs more). The black tick is the latest round there (' +
+      fDate(Hh.last_date) + ').';
+    tw.append(h('table', null, [
+      h('thead', null, h('tr', null, ['Hole', 'Par', 'SI', 'Average to par', 'Rounds', 'Latest'].map((t, i) => h('th', { class: i ? 'num' : null, text: t })))),
+      h('tbody', null, Hh.holes.map((x) => h('tr', null, [h('td', { text: String(x.hole) }), h('td', { class: 'num', text: String(x.par) }),
+        h('td', { class: 'num', text: x.si == null ? DASH : String(x.si) }), h('td', { class: 'num', text: sgn(x.avg, 2) }),
+        h('td', { class: 'num', text: String(x.n) }), h('td', { class: 'num', text: x.last == null ? DASH : sgnInt(x.last) })]))),
+    ]));
+  }
+  function renderHolesChart(box, width) {
+    box.replaceChildren();
+    const Hh = V().holes;
+    if (!Hh) return;
+    const holes = Hh.holes;
+    const W = Math.max(260, width), H = 210, m = { l: 36, r: 8, t: 10, b: 38 };
+    const vals = [0];
+    holes.forEach((x) => { vals.push(x.avg); if (x.last != null) vals.push(x.last); });
+    const dom = nice(Math.min.apply(null, vals), Math.max.apply(null, vals), 4);
+    const top = m.t, bot = H - m.b;
+    const Y = scale(dom.lo, dom.hi, bot, top);
+    const band = (W - m.l - m.r) / holes.length;
+    const svg = sv('svg', { width: W, height: H, viewBox: '0 0 ' + W + ' ' + H, role: 'group',
+      'aria-label': 'Average score to par on each of ' + plural(holes.length, 'hole') + ' at ' + Hh.course + '. The table below lists every figure.' });
+    dom.ticks.forEach((v) => {
+      sv('line', { x1: m.l, x2: W - m.r, y1: Y(v), y2: Y(v), class: v === 0 ? 'zero' : 'grid' }, svg);
+      sv('text', { x: m.l - 6, y: Y(v) + 4, 'text-anchor': 'end', class: 'tick', text: sgn(v, dom.step >= 1 ? 0 : 1) }, svg);
+    });
+    holes.forEach((x, i) => {
+      const cx = m.l + band * (i + 0.5), bw = Math.max(6, band * 0.6);
+      const y0 = Y(0), y1 = Y(x.avg);
+      sv('rect', { x: cx - bw / 2, y: Math.min(y0, y1), width: bw, height: Math.max(1, Math.abs(y1 - y0)), class: 'hole-bar' + (x.avg < 0 ? ' good' : '') }, svg);
+      if (x.last != null) sv('line', { x1: cx - bw / 2 - 3, x2: cx + bw / 2 + 3, y1: Y(x.last), y2: Y(x.last), class: 'hole-last' }, svg);
+      sv('text', { x: cx, y: bot + 15, 'text-anchor': 'middle', class: 'tick', text: String(x.hole) }, svg);
+      if (band >= 30) sv('text', { x: cx, y: bot + 29, 'text-anchor': 'middle', class: 'tick', text: 'par ' + x.par }, svg);
+      const hit = sv('rect', { x: cx - band / 2, y: top, width: band, height: bot - top, class: 'hit', 'aria-label': 'Hole ' + x.hole + ': average ' + sgn(x.avg, 2) }, svg);
+      hoverable(hit, () => [{ head: 'Hole ' + x.hole + ' · par ' + x.par + (x.si != null ? ' · SI ' + x.si : '') },
+        { key: 'round', value: sgn(x.avg, 2), label: 'average to par over ' + plural(x.n, 'round') },
+        x.last != null ? { value: sgnInt(x.last), label: 'latest round (' + fShort(x.last_date) + ')' } : null]);
+    });
+    box.append(svg);
+  }
+
+  // ------------------------------------------------------------------ club distances
+  function renderClubs() {
+    const card = $('#clubs-card');
+    card.hidden = !D.clubs || D.empty;
+    if (card.hidden) return;
+    const C = V().clubs;
+    const anyAfter = D.clubs.distances.n_after > 0;
+    legend($('#clubs-legend'), [['shot', anyAfter ? 'Shot logged live' : 'One shot']].concat(anyAfter ? [['shot-after', 'Shot entered after the round']] : [])
+      .concat([['iqr', 'Middle half of shots'], ['median', 'Median'], ['bad', 'Left out (listed in the details below)']]));
+    const foot = $('#clubs-foot'), cov = $('#clubs-coverage'), holes = $('#clubs-holes'), tw = $('#clubs-table .table-wrap');
+    foot.textContent = ''; cov.textContent = ''; holes.replaceChildren(); tw.replaceChildren();
+    if (!C) return;
+    const dist = C.distances, c = C.coverage;
+    if (dist.invalid.length) {
+      const groups = {};
+      dist.invalid.forEach((s) => {
+        const g = groups[s.reason] || (groups[s.reason] = {});
+        (g[s.club] = g[s.club] || []).push(s.d == null ? 'no distance' : s.d < 10 ? s.d.toFixed(1) : yd(s.d));
+      });
+      foot.textContent = 'Left out of the figures (' + plural(dist.invalid.length, 'shot') + ', drawn as grey crosses): ' + Object.keys(groups).map((r) =>
+        r + ': ' + Object.keys(groups[r]).map((k) => k + ' ' + groups[r][k].join(', ')).join('; ')).join('. ') + ' (yards).';
+    }
+    let covText = 'Shots tracked on ' + c.rounds_with_shots + ' of ' + plural(c.rounds_total, 'round') + ': ' + plural(dist.n_valid + dist.invalid.length, 'full or short-game shot') + ' plus ' + plural(dist.n_putts, 'putt') +
+      '. On those rounds ' + c.holes_with_shots + ' of ' + c.holes_played + ' holes have at least one tracked shot; holes without one are simply missing, not zero.';
+    if (c.rounds_logged_after) covText += ' ' + c.rounds_logged_after + ' of the ' + plural(c.rounds_with_shots, 'tracked round') + ' ' + (c.rounds_logged_after === 1 ? 'was' : 'were') +
+      ' entered after play (every shot within seconds of the last), so those positions are where the map was tapped, not where the ball lay: ' + dist.n_after + ' of the ' + dist.n_valid + ' shots in the figures are rough for that reason.';
+    cov.textContent = covText;
+    if (c.by_hole.length) {
+      const share = (x) => x.played ? x.rounds / x.played : 1;
+      const min = Math.min.apply(null, c.by_hole.map(share));
+      holes.append(h('p', { class: 'small muted', text: 'Per hole: tracked rounds with at least one shot on that hole, of the tracked rounds that played it' + (min < 1 ? ' (the least covered are outlined)' : '') + ':' }));
+      holes.append(h('div', { class: 'holes-strip' }, c.by_hole.map((x) => h('span', { class: share(x) === min && min < 1 ? 'low' : null,
+        title: 'Hole ' + x.hole + ': shots on ' + x.rounds + ' of ' + x.played + ' tracked rounds (' + plural(x.shots, 'shot') + ')', text: x.hole + ': ' + x.rounds + '/' + x.played }))));
+    }
+    tw.append(h('table', null, [
+      h('thead', null, h('tr', null, ['Club', 'Median', 'Live-logged median', 'Middle half', 'Range', 'Shots', 'Entered after', 'Left out'].map((t, i) => h('th', { class: i ? 'num' : null, text: t })))),
+      h('tbody', null, dist.clubs.map((r) => h('tr', null, [h('td', { text: r.club + (r.n < 5 ? ' (few shots)' : '') }), h('td', { class: 'num', text: yd(r.median) }),
+        h('td', { class: 'num', text: r.n_live ? yd(r.median_live) + ' (' + r.n_live + ')' : DASH }), h('td', { class: 'num', text: yd(r.q1) + '–' + yd(r.q3) }),
+        h('td', { class: 'num', text: yd(r.min) + '–' + yd(r.max) }), h('td', { class: 'num', text: String(r.n) }), h('td', { class: 'num', text: String(r.n_after || 0) }),
+        h('td', { class: 'num', text: String(r.n_invalid) })]))),
+    ]));
+    tw.append(h('table', { style: 'margin-top:12px' }, [
+      h('thead', null, h('tr', null, ['Date', 'Course', 'Holes with shots', 'Shots', 'Logged'].map((t, i) => h('th', { class: i > 1 && i < 4 ? 'num' : null, text: t })))),
+      h('tbody', null, c.rounds.map((r) => h('tr', null, [h('td', { text: fDate(r.date) }), h('td', { class: 'wrap-cell', text: r.course }),
+        h('td', { class: 'num', text: r.holes_with_shots + ' of ' + r.holes_played }), h('td', { class: 'num', text: String(r.shots) }),
+        h('td', { text: { live: 'live', after: 'after the round', unknown: DASH }[r.logged] || DASH })]))),
+    ]));
+  }
+  function renderClubChart(box, width) {
+    box.replaceChildren();
+    const C = V().clubs;
+    if (!C || !C.distances.clubs.length) { box.append(h('p', { class: 'muted', text: VK === 'all' ? 'No full or short-game shots tracked yet.' : 'No tracked shots on rounds at this course.' })); return; }
+    const rows = C.distances.clubs;
+    const bad = C.distances.invalid;
+    const W = Math.max(260, width);
+    const narrow = W < 520;
+    const m = { l: 56, r: narrow ? 60 : 110, t: 6, b: 26 };
+    const rowH = 34;
+    const H = m.t + rows.length * rowH + m.b;
+    let hi = 0;
+    rows.forEach((r) => { hi = Math.max(hi, r.max); });
+    const dom = nice(0, Math.max(50, hi), narrow ? 4 : 6);
+    const X = scale(0, dom.hi, m.l, W - m.r);
+    const svg = sv('svg', { width: W, height: H, viewBox: '0 0 ' + W + ' ' + H, role: 'group', 'aria-label': 'Club distances for ' + plural(rows.length, 'club') + '. The table below lists every figure.' });
+    const bot = H - m.b;
+    dom.ticks.forEach((v) => {
+      sv('line', { x1: X(v), x2: X(v), y1: m.t, y2: bot, class: 'grid' }, svg);
+      sv('text', { x: X(v), y: bot + 16, 'text-anchor': v === 0 ? 'start' : 'middle', class: 'tick', text: String(v) }, svg);
+    });
+    sv('line', { x1: m.l, x2: W - m.r, y1: bot, y2: bot, class: 'axis' }, svg);
+    rows.forEach((r, i) => {
+      const cy = m.t + i * rowH + rowH / 2;
+      const hitEl = sv('rect', { x: 0, y: cy - rowH / 2, width: W, height: rowH, class: 'hit row-hit', 'aria-label': r.club + ': median ' + yd(r.median) + ' yards from ' + plural(r.n, 'shot') }, svg);
+      sv('rect', { x: 0, y: cy - rowH / 2 + 1, width: W, height: rowH - 2, rx: 4, class: 'row-lift' }, svg);
+      sv('text', { x: m.l - 10, y: cy + 4, 'text-anchor': 'end', class: 'club-label', text: r.club }, svg);
+      // Dots (every shot) in the upper band, the middle-half bar just below, the median tick across both.
+      // Clubs with fewer than 5 shots are drawn faint: their figures are anecdotes, not distances.
+      const g = sv('g', { class: r.n < 5 ? 'few' : null }, svg);
+      r.shots.forEach((s, j) => {
+        const jitter = ((j * 7919) % 11 - 5) * 1.0;          // deterministic spread so stacked shots stay visible
+        sv('circle', { cx: X(s.d), cy: cy - 4 + jitter, r: 3, class: 'shot' + (s.after ? ' after' : '') }, g);
+      });
+      sv('rect', { x: X(r.q1), y: cy + 7, width: Math.max(4, X(r.q3) - X(r.q1)), height: 5, rx: 2.5, class: 'iqr' }, g);
+      sv('line', { x1: X(r.median), x2: X(r.median), y1: cy - 12, y2: cy + 14, class: 'median' }, g);
+      bad.filter((s) => s.club === r.club && s.d != null).forEach((s) => {
+        const x = X(Math.min(dom.hi, Math.max(0, s.d))), y = cy - 4;
+        sv('line', { x1: x - 3.5, x2: x + 3.5, y1: y - 3.5, y2: y + 3.5, class: 'bad-shot' }, svg);
+        sv('line', { x1: x + 3.5, x2: x - 3.5, y1: y - 3.5, y2: y + 3.5, class: 'bad-shot' }, svg);
+      });
+      sv('text', { x: W - m.r + 8, y: cy + 4, class: 'club-value', text: yd(r.median) }, svg);
+      sv('text', { x: W - m.r + 8 + (narrow ? 0 : 34), y: cy + (narrow ? 15 : 4), class: 'club-n',
+        text: 'n ' + r.n + (narrow ? '' : (r.n_invalid ? ' +' + r.n_invalid + '×' : '')) + (r.n < 5 ? (narrow ? ' few' : ' · few') : '') }, svg);
+      hoverable(hitEl, () => [{ head: r.club + ' · ' + plural(r.n, 'shot') + (r.n_invalid ? ' (' + r.n_invalid + ' left out)' : '') },
+        { key: 'round', value: yd(r.median) + ' yds', label: 'median' },
+        { value: yd(r.q1) + '–' + yd(r.q3), label: 'middle half of shots' },
+        { value: yd(r.min) + '–' + yd(r.max), label: 'shortest to longest' },
+        r.n_after && r.n_live ? { value: yd(r.median_live) + ' yds', label: 'median of the ' + plural(r.n_live, 'shot') + ' logged live' } : null,
+        r.n_after ? { note: r.n_after + ' of ' + plural(r.n, 'shot') + ' entered after the round (map positions).' } : null,
+        r.n < 5 ? { note: 'Few shots: treat these numbers as rough.' } : null]);
+    });
+    box.append(svg);
+  }
+
+  // ------------------------------------------------------------------ timeline swimlane
+  const LANE_LABEL = { lesson: 'Lessons', practice: 'Practice', equipment: 'Equipment', injury: 'Injury', other: 'Other notes' };
+  function renderTimeline(box, width) {
+    box.replaceChildren();
+    const ev = D.events;
+    if (!ev.length || !DOM) { box.append(h('p', { class: 'muted', text: 'No events yet. Lessons, practice and gear notes appear here once they are synced and reviewed.' })); return; }
+    const lanes = ['lesson', 'practice', 'equipment', 'injury', 'other'].filter((l) => ev.some((e) => e.lane === l));
+    const W = Math.max(260, width);
+    const hm = heroMargins(W);
+    const laneH = 38, m = { l: hm.l, r: hm.r, t: 4, b: 26 };
+    const H = m.t + lanes.length * laneH + m.b;
+    const X = scale(DOM[0], DOM[1], m.l, W - m.r);
+    const svg = sv('svg', { width: W, height: H, viewBox: '0 0 ' + W + ' ' + H, role: 'group', 'aria-label': 'Timeline of ' + plural(ev.length, 'event') + '. The list below has the same events.' });
+    const bot = H - m.b;
+    lessonsEv.forEach((e) => sv('line', { x1: X(T(e.date)), x2: X(T(e.date)), y1: m.t, y2: bot, class: 'lesson-rule faint' }, svg));
+    lanes.forEach((ln, i) => {
+      const y0 = m.t + i * laneH;
+      sv('text', { x: m.l, y: y0 + 12, class: 'lane-label', text: LANE_LABEL[ln] }, svg);
+      if (i) sv('line', { x1: m.l, x2: W - m.r, y1: y0, y2: y0, class: 'grid' }, svg);
+      const cy = y0 + 26;
+      ev.filter((e) => e.lane === ln).forEach((e) => {
+        const x = X(T(e.date));
+        const pl = e.planned ? ' planned' : '';
+        let hit;
+        if (ln === 'injury') {
+          const xa = X(T(e.start)), xb = Math.max(xa + 8, X(T(e.end)));
+          sv('rect', { x: xa, y: cy - 4, width: xb - xa, height: 8, rx: 4, class: 'mark-injury' }, svg);
+          hit = sv('rect', { x: xa - 6, y: cy - 12, width: xb - xa + 12, height: 24, class: 'hit', 'aria-label': e.title }, svg);
+        } else {
+          if (ln === 'lesson') sv('path', { d: 'M' + x + ',' + (cy - 6) + ' l6,6 l-6,6 l-6,-6 Z', class: 'mark-lesson' + pl }, svg);
+          else if (ln === 'equipment') sv('path', { d: 'M' + (x - 6) + ',' + (cy + 5) + ' L' + (x + 6) + ',' + (cy + 5) + ' L' + x + ',' + (cy - 6) + ' Z', class: 'mark-equipment' + pl }, svg);
+          else sv('circle', { cx: x, cy: cy, r: 4.5, class: 'mark-' + ln + pl }, svg);
+          hit = sv('circle', { cx: x, cy: cy, r: 12, class: 'hit', 'aria-label': e.title }, svg);
+        }
+        hoverable(hit, () => eventRows(e));
+      });
+    });
+    xAxis(svg, X, DOM[0], DOM[1], bot, W);
+    box.append(svg);
+  }
+  function renderTimelineList() {
+    if (!D.events.length) { $('#timeline-list').hidden = true; return; }
+    const rows = D.events.slice().reverse().map((e) => h('tr', null, [
+      h('td', { text: fDate(e.date) + (e.planned ? ' (planned)' : '') }),
+      h('td', { text: LANE_LABEL[e.lane] }),
+      h('td', { class: 'wrap-cell', text: e.title }),
+      h('td', { class: 'wrap-cell', text: e.summary }),
+    ]));
+    $('#timeline-list .table-wrap').append(h('table', null, [
+      h('thead', null, h('tr', null, ['Date', 'Kind', 'What', 'Summary'].map((t) => h('th', { text: t })))),
+      h('tbody', null, rows),
+    ]));
+  }
+
+  // ------------------------------------------------------------------ rounds table + scorecards
+  // "Southborough Golf Club" -> "Southborough" for the narrow rounds table (one line per row).
+  const shortCourse = (s) => String(s || '').replace(/\s+(golf\s*&\s*country club|country club|golf club|golf links|golf course|golf resort|resort\s*(&|and)\s*golf|golf)$/i, '') || s;
+  const FW = { hit: '✓', left: '←', right: '→', short: '↓', long: '↑', miss: '✗', not_applicable: '' };
+  const FW_NAME = { hit: 'hit', left: 'missed left', right: 'missed right', short: 'short', long: 'long', miss: 'missed' };
+  function scoreClass(s, par) {
+    if (s == null || par == null) return '';
+    const d = s - par;
+    return d <= -2 ? 'eagle' : d === -1 ? 'birdie' : d === 0 ? 'par' : d === 1 ? 'bogey' : d === 2 ? 'double' : 'triple';
+  }
+  function scorecard(r) {
+    if (!r.card.length) return h('p', { class: 'muted', text: r.entry_mode === 'total_only' ? 'Entered as a total only, so there is no hole-by-hole card.' : 'No hole-by-hole data for this round.' });
+    const nines = [r.card.filter((c) => c.h <= 9), r.card.filter((c) => c.h > 9)].filter((n) => n.length);
+    const has = (f) => r.card.some((c) => c[f] != null);
+    const wrap = h('div', { class: 'scorecard' });
+    nines.forEach((n) => {
+      const sum = (f) => n.every((c) => c[f] != null) ? n.reduce((a, c) => a + c[f], 0) : null;
+      const name = n[0].h <= 9 ? 'Out' : 'In';
+      const rows = [];
+      rows.push(h('tr', null, [h('th', { text: 'Hole' })].concat(n.map((c) => h('th', { text: String(c.h) }))).concat([h('th', { class: 'tot', text: name })])));
+      if (has('par')) rows.push(h('tr', null, [h('td', { text: 'Par' })].concat(n.map((c) => h('td', { text: c.par == null ? '' : String(c.par) }))).concat([h('td', { class: 'tot', text: sum('par') == null ? '' : String(sum('par')) })])));
+      if (has('si')) rows.push(h('tr', null, [h('td', { text: 'SI' })].concat(n.map((c) => h('td', { class: 'muted', text: c.si == null ? '' : String(c.si) }))).concat([h('td', { class: 'tot', text: '' })])));
+      rows.push(h('tr', null, [h('td', { text: 'Score' })].concat(n.map((c) => h('td', null, h('span', { class: 'sc ' + scoreClass(c.s, c.par), text: c.s == null ? '' : String(c.s) })))).concat([h('td', { class: 'tot', text: sum('s') == null ? '' : String(sum('s')) })])));
+      if (has('par')) rows.push(h('tr', null, [h('td', { text: 'To par' })].concat(n.map((c) => h('td', { class: 'muted', text: c.s == null || c.par == null ? '' : sgnInt(c.s - c.par) })))
+        .concat([h('td', { class: 'tot', text: sum('s') == null || sum('par') == null ? '' : sgnInt(sum('s') - sum('par')) })])));
+      if (has('p')) rows.push(h('tr', null, [h('td', { text: 'Putts' })].concat(n.map((c) => h('td', { text: c.p == null ? '' : String(c.p) }))).concat([h('td', { class: 'tot', text: sum('p') == null ? '' : String(sum('p')) })])));
+      if (has('fw')) {
+        const chances = n.filter((c) => c.fw && c.fw !== 'not_applicable');
+        rows.push(h('tr', null, [h('td', { text: 'Fairway' })].concat(n.map((c) => h('td', { 'aria-label': FW_NAME[c.fw] || null, text: FW[c.fw] == null ? '' : FW[c.fw] }))).concat([h('td', { class: 'tot', text: chances.filter((c) => c.fw === 'hit').length + '/' + chances.length })])));
+      }
+      if (has('g')) rows.push(h('tr', null, [h('td', { text: 'GIR' })].concat(n.map((c) => h('td', { text: c.g == null ? '' : c.g ? '●' : '○' }))).concat([h('td', { class: 'tot', text: n.filter((c) => c.g).length + '/' + n.filter((c) => c.g != null).length })])));
+      wrap.append(h('div', { class: 'table-wrap' }, h('table', { class: 'sc-table' }, h('tbody', null, rows))));
+    });
+    const lg = h('div', { class: 'sc-legend' }, [['eagle', 'Eagle or better'], ['birdie', 'Birdie'], ['par', 'Par'], ['bogey', 'Bogey'], ['double', 'Double'], ['triple', 'Triple+']].map((x) =>
+      h('span', { class: 'item' }, [h('span', { class: 'sc ' + x[0], 'aria-hidden': 'true' }), x[1]])));
+    return h('div', null, [wrap, lg, has('fw') ? h('p', { class: 'small muted', text: 'Fairway: ✓ hit, ← left, → right, ↓ short, ↑ long. GIR: ● hit, ○ missed.' }) : null]);
+  }
+  function roundDetail(r) {
+    const src = r.source === 'screenshot' ? 'screenshots' : r.source === 'manual' ? 'manual entry' : '18Birdies export';
+    const tierText = { A: 'round totals only (tier A)', B: 'per-hole scoring (tier B)', C: 'per-hole stats (tier C)' }[r.tier];
+    const parts = [h('p', { class: 'small muted', text: 'From the ' + src + ' · ' + r.entry_mode.replace(/_/g, ' ') + (D.public ? '' : ' · ' + tierText) + (r.tee ? ' · ' + r.tee + ' tees' : '') + (D.public ? '' : ' · id ' + r.id) })];
+    const s9 = r.to_par_9 == null ? null : (r.holes === 18 ? 'Per 9 holes: ' + sgn(r.to_par_9) + ' (half of ' + sgnInt(r.to_par) + ')' + (r.halves ? '; front nine ' + sgnInt(r.halves.front) + ', back nine ' + sgnInt(r.halves.back) : '') + '.'
+      : 'Per 9 holes: ' + sgnInt(r.to_par) + '.');
+    if (s9) parts.push(h('p', { class: 'small', text: s9 }));
+    let dtext = null;
+    if (r.holes === 9 && r.diff_equiv != null) dtext = r.differential != null ? 'Our differential (counts toward the index): ' + f1(r.differential) + ' = the 9-hole differential ' + f1(r.diff_equiv / 2) + ' plus the expected score over the other nine (unofficial approximation).' : '9-hole differential ' + f1(r.diff_equiv / 2) + '; not counted toward the index.';
+    else if (r.diff_equiv != null) dtext = 'Our differential ' + f1(r.diff_equiv) + ({ ndb_adjusted: ' (net double bogey applied, unofficial)', gross_upper_bound: ' (from gross: no hole caps, an upper bound)' }[r.diff_kind] || (r.differential == null ? ' (from gross; recompute for the adjusted value)' : '')) + '.';
+    else if (!r.rated) dtext = 'No course rating for this round, so no differential of ours.';
+    if (r.b18 != null) dtext = (dtext ? dtext + ' ' : '') + "18Birdies' own per-round handicap: " + f1(r.b18) + '.';
+    if (dtext) parts.push(h('p', { class: 'small', text: dtext }));
+    if (r.sg != null || r.sg_ttg != null) parts.push(h('p', { class: 'small', text: '18Birdies strokes gained: overall ' + sgn(r.sg) + ', tee to green ' + sgn(r.sg_ttg) + '.' }));
+    if (r.putts_partial) parts.push(h('p', { class: 'small muted', text: 'Putts: ' + (r.putts_recorded == null ? 'none' : r.putts_recorded) + ' entered over ' + r.holes + ' holes, but not on every hole (' +
+      (r.putts_recorded != null && r.putts_recorded < r.holes ? 'fewer putts than holes' : '18Birdies shows holes without putts') + '), so this round is left out of every putting stat.' +
+      (D.public ? '' : ' If putts were entered on every hole: golf round putts ' + r.id + ' full') }));
+    const b = r.baseline;
+    if (b) {
+      const bits = [];
+      if (r.to_par_9 != null && b.to_par_9 != null) bits.push(score.short + ' ' + sgn(r.to_par_9) + ' (avg ' + sgn(b.to_par_9) + ')');
+      if (r.fir && b.fir != null) bits.push('fairways ' + pc(r.fir[0] / r.fir[1]) + ' (avg ' + pc(b.fir) + ')');
+      if (r.gir && b.gir != null) bits.push('greens ' + pc(r.gir[0] / r.gir[1]) + ' (avg ' + pc(b.gir) + ')');
+      if (r.putts != null && b.putts_9 != null) bits.push('putts per 9 ' + f1(r.putts * 9 / r.holes) + ' (avg ' + f1(b.putts_9) + ')');
+      if (bits.length) parts.push(h('p', { class: 'small', text: 'Against your previous ' + plural(b.n, 'round') + ': ' + bits.join(', ') + '.' }));
+    }
+    const flags = (r.flags || []).filter((f) => f !== 'putts_partial');
+    if (flags.length) parts.push(h('div', { class: 'flag' }, [h('span', { class: 'icon-warning', 'aria-hidden': 'true', text: '▲' }),
+      h('span', { text: 'Flags: ' + flags.map((f) => typeof f === 'string' ? f.replace(/_/g, ' ') : (f.code || '').replace(/_/g, ' ')).join(', ') + (flags.indexOf('sum_mismatch') >= 0 ? '. Hole scores do not add up to the total, so per-hole numbers are not used.' : '.') })]));
+    parts.push(scorecard(r));
+    return h('div', { class: 'round-detail' }, parts);
+  }
+  function renderRounds() {
+    const box = $('#rounds-table');
+    box.replaceChildren();
+    const rows = D.rounds.filter((r) => VK === 'all' || r.view === VK);
+    $('#rounds-scope').textContent = (VK === 'all' ? '' : rows.length + ' of ' + D.rounds.length + ' rounds · ') + 'Select a round for its scorecard';
+    if (!rows.length) { box.append(h('p', { class: 'muted', text: 'No rounds yet.' })); return; }
+    const cols = [['', ''], ['Date', ''], ['Course', ''], ['Holes', 'num hide-sm'], ['Score', 'num'], ['To par', 'num', 'Strokes over par; an 18-hole round also shows its per-9 figure (half)'], ['Diff.', 'num hide-sm', 'Our score differential, 18-hole equivalent (unofficial)'],
+      ['18Birdies', 'num hide-sm', "18Birdies' own per-round handicap"], ['FIR', 'num hide-sm'], ['GIR', 'num hide-sm'], ['Putts', 'num hide-sm'], ['Data', 'hide-sm']];
+    const tbody = h('tbody');
+    rows.forEach((r, i) => {
+      const detailId = 'round-detail-' + i;
+      const btn = h('button', { class: 'expander', type: 'button', 'aria-expanded': 'false', 'aria-controls': detailId, 'aria-label': 'Scorecard for ' + fDate(r.date), text: '▸' });
+      const putts = r.putts_partial ? [String(r.putts_recorded == null ? DASH : r.putts_recorded), ' ', h('span', { class: 'partial', text: 'partial' })] : (r.putts == null ? DASH : String(r.putts));
+      const tr = h('tr', { class: 'round-row' }, [
+        h('td', null, btn),
+        h('td', { text: fShort(r.date) + (r.date.slice(0, 4) !== D.today.slice(0, 4) ? ' ' + r.date.slice(0, 4) : '') }),
+        h('td', { class: 'wrap-cell' }, [h('span', { class: 'hide-sm', text: r.course }), h('span', { class: 'show-sm', text: shortCourse(r.course) })]),
+        h('td', { class: 'num hide-sm', text: r.holes == null ? DASH : String(r.holes) }),
+        h('td', { class: 'num', text: r.gross == null ? DASH : String(r.gross) }),
+        h('td', { class: 'num', title: r.holes === 18 ? '18 holes: per 9 is half the score to par' : null },
+          r.holes === 18 && r.to_par_9 != null ? [sgnInt(r.to_par), h('span', { class: 'small muted', text: ' (' + sgn(r.to_par_9) + '/9)' })] : sgnInt(r.to_par)),
+        h('td', { class: 'num hide-sm', text: f1(r.differential != null ? r.differential : (r.holes === 18 ? r.diff_equiv : null)) }),
+        h('td', { class: 'num hide-sm', text: f1(r.b18) }),
+        h('td', { class: 'num hide-sm', text: r.fir ? r.fir[0] + '/' + r.fir[1] : DASH }),
+        h('td', { class: 'num hide-sm', text: r.gir ? r.gir[0] + '/' + r.gir[1] : DASH }),
+        h('td', { class: 'num hide-sm', title: r.putts_partial ? 'Putts entered on only some holes: left out of putting stats' : null }, putts),
+        h('td', { class: 'hide-sm' }, [h('span', { class: 'tier', title: 'Data tier', text: r.tier }), ' ', h('span', { class: 'small muted', text: r.source === 'screenshot' ? 'screens' : r.source === 'manual' ? 'manual' : 'export' }),
+          (r.flags || []).some((f) => f !== 'putts_partial') ? h('span', { class: 'icon-warning', title: 'Has data-quality flags', text: ' ▲' }) : null]),
+      ]);
+      const det = h('tr', { class: 'detail', id: detailId, hidden: true }, h('td', { colspan: cols.length }));
+      let built = false;
+      const toggle = () => {
+        const open = det.hidden;
+        if (open && !built) { det.firstChild.append(roundDetail(r)); built = true; }
+        det.hidden = !open;
+        tr.classList.toggle('open', open);
+        btn.setAttribute('aria-expanded', String(open));
+        btn.textContent = open ? '▾' : '▸';
+      };
+      tr.addEventListener('click', (e) => { if (e.target !== btn) toggle(); });
+      btn.addEventListener('click', (e) => { e.stopPropagation(); toggle(); });
+      tbody.append(tr, det);
+    });
+    box.append(h('table', null, [h('thead', null, h('tr', null, cols.map((c) => h('th', { class: c[1] || null, title: c[2] || null, text: c[0] })))), tbody]));
+    box.append(h('p', { class: 'foot', text: 'To par: an 18-hole round also shows its per-9 figure (/9: half its score to par). Diff. = our 18-hole score differential, the one that counts toward the unofficial index; 18Birdies = its own per-round handicap. Partial = putts entered on only some holes.' }));
+  }
+
+  // ------------------------------------------------------------------ data quality
+  function renderQuality() {
+    const Q = D.quality;
+    const icons = { ok: ['✓', 'icon-ok', 'OK'], warning: ['▲', 'icon-warning', 'Check'], info: ['●', 'icon-info', 'Note'] };
+    const list = $('#quality-list');
+    const items = Q.items.length ? Q.items : [{ level: 'ok', text: 'No data-quality issues found.' }];
+    items.forEach((it) => {
+      const ic = icons[it.level] || icons.info;
+      list.append(h('li', null, [h('span', { class: 'qicon ' + ic[1], 'aria-hidden': 'true', text: ic[0] }), h('span', null, [h('span', { class: 'small muted', text: ic[2] + ': ' }), it.text])]));
+    });
+    if (Q.flagged_rounds.length) {
+      $('#quality-extra').append(h('details', null, [h('summary', { text: 'Flagged rounds (' + Q.flagged_rounds.length + ')' }),
+        h('ul', null, Q.flagged_rounds.map((f) => h('li', { class: 'small', text: fDate(f.date) + ' · ' + f.id + ' · ' + f.flags.map((x) => typeof x === 'string' ? x : x.code).join(', ') })))]));
+    }
+    if ((Q.partial_putts || []).length) {
+      $('#quality-extra').append(h('details', null, [h('summary', { text: 'Rounds with partial putts (' + Q.partial_putts.length + ')' }),
+        h('ul', null, Q.partial_putts.map((f) => h('li', { class: 'small', text: fDate(f.date) + ' · ' + (f.putts == null ? 'no' : f.putts) + ' putts over ' + f.holes + ' holes' })))]));
+    }
+  }
+
+  // ------------------------------------------------------------------ boot
+  renderHeader();
+  if (D.empty) renderEmpty();
+  else {
+    renderKpis();
+    renderFilter();
+    renderHeroFrame();
+    mount($('#hero-chart'), renderHero);
+    renderDiffFrame();
+    mount($('#diff-chart'), renderDiff);
+    renderLessons();
+    renderMultiples();
+    renderHolesFrame();
+    mount($('#holes-chart'), renderHolesChart);
+    renderClubs();
+    if (D.clubs) mount($('#clubs-chart'), renderClubChart);
+    renderRounds();
+  }
+  if (D.events.length) mount($('#timeline-chart'), renderTimeline); else if (!D.empty) $('#timeline-chart').append(h('p', { class: 'muted', text: 'No events yet. Lessons, practice and gear notes appear here once they are synced and reviewed.' }));
+  renderTimelineList();
+  renderQuality();
+  renderAll(true);
+  document.querySelectorAll('details').forEach((d) => d.addEventListener('toggle', () => renderAll(false)));
+})();
+</script>
+</body>
+</html>
