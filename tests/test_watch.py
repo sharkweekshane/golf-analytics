@@ -214,6 +214,24 @@ def test_a_second_scanner_backs_off_while_one_is_running(cfg, conn, downloads):
     assert s["busy"] and s["imported"] == [] and "Another scan" in watch.format_scan(s)
 
 
+def test_lock_file_is_outside_the_project_and_open_failures_mean_busy(cfg, conn, downloads, monkeypatch, tmp_path):
+    monkeypatch.setenv("GOLF_LOCK_DIR", str(tmp_path / "locks"))
+    with watch._lock(cfg) as got:
+        assert got and (tmp_path / "locks" / "watch.lock").exists()
+    archive(downloads / "18Birdies_archive.json")
+    real_open = open
+
+    def icloud_refuses(path, *a, **kw):                     # what iCloud did on 2026-10-02
+        if str(path).endswith("watch.lock"):
+            raise OSError(11, "Resource deadlock avoided")
+        return real_open(path, *a, **kw)
+
+    monkeypatch.setattr("builtins.open", icloud_refuses)
+    s = scan(conn, cfg)
+    monkeypatch.setattr("builtins.open", real_open)
+    assert s["busy"] and s["imported"] == []
+
+
 def test_publish_runs_after_an_import_only_when_enabled_and_auto(cfg, conn, downloads, monkeypatch):
     from golf import publish
 

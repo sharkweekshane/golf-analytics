@@ -11,10 +11,12 @@ from golf.db import memory_db
 
 
 @pytest.fixture(autouse=True)
-def _no_keychain_no_meta_api(monkeypatch):
+def _no_keychain_no_meta_api(monkeypatch, tmp_path_factory):
     """Every test, in every file: the real Keychain is never read (secrets.RUNNER fails the test), no client
-    for Meta's API is built (caddie.CLIENT_FACTORY fails it), the Caddie's retry wait is instant, and
-    MUSE_API_KEY / OPENAI_* from the shell can't leak in. A test that needs a key injects a fake one."""
+    for Meta's API is built (caddie.CLIENT_FACTORY fails it), the Caddie's retry wait is instant,
+    MUSE_API_KEY / OPENAI_* from the shell can't leak in, and the watcher's lock file goes to a temp folder
+    instead of ~/Library/Caches. A test that needs a key injects a fake one."""
+    monkeypatch.setenv("GOLF_LOCK_DIR", str(tmp_path_factory.mktemp("locks")))
     def no_keychain(args):
         raise AssertionError(f"unexpected Keychain call ({' '.join(list(args)[:2])})")
 

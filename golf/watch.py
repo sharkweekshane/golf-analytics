@@ -122,14 +122,28 @@ def log(cfg: Config, text: str) -> None:
         pass
 
 
+def lock_dir() -> Path:
+    """Local, never iCloud-synced folder for the scan lock; GOLF_LOCK_DIR overrides it (tests)."""
+    return Path(os.environ.get("GOLF_LOCK_DIR") or Path.home() / "Library" / "Caches" / "golf-analytics")
+
+
 @contextmanager
 def _lock(cfg: Config) -> Iterator[bool]:
-    """Non-blocking exclusive lock: yields False when another scan (LaunchAgent, golf serve) holds it."""
+    """Non-blocking exclusive lock: yields False when another scan (LaunchAgent, golf serve) holds it.
+
+    The lock file lives in ~/Library/Caches, not data/logs: the project is on the iCloud-synced Desktop, where
+    a background process opening a file can fail with EDEADLK while iCloud syncs it (seen 2026-10-02). Any
+    failure to open or lock counts as busy: this scan is skipped and the next one runs."""
     import fcntl
 
-    folder = logs_dir(cfg)
-    folder.mkdir(parents=True, exist_ok=True)
-    with open(folder / "watch.lock", "w") as fh:
+    try:
+        folder = lock_dir()
+        folder.mkdir(parents=True, exist_ok=True)
+        fh = open(folder / "watch.lock", "w")
+    except OSError:
+        yield False
+        return
+    with fh:
         try:
             fcntl.flock(fh, fcntl.LOCK_EX | fcntl.LOCK_NB)
         except OSError:
