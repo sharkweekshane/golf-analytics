@@ -1,0 +1,832 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
+<meta name="robots" content="noindex">
+<meta name="referrer" content="no-referrer">
+<meta http-equiv="Content-Security-Policy" content="default-src &#x27;none&#x27;; script-src &#x27;sha256-FEauVqqykqBkGAXIrxRVpHgqZHCleibhHh4LOGYZdYo=&#x27;; style-src &#x27;unsafe-inline&#x27;; connect-src &#x27;self&#x27; https://golf-caddie.golf-caddie-worker.workers.dev; base-uri &#x27;none&#x27;; form-action &#x27;none&#x27;">
+<title>Caddie</title>
+<style>
+:root{
+  color-scheme:light;
+  --paper:#f3f6f0; --card:#ffffff; --ink:#17201b; --muted:#56655b; --line:#d7ded5; --line-strong:#b9c5bb;
+  --fairway:#2e6b4f; --fairway-soft:#e2eee6; --flag:#b07f14; --flag-soft:#f7ecd0;
+  --bad:#b4442f; --user:#e7ede8; --wash:#eef2ec;
+  --display:"Avenir Next Condensed","Arial Narrow",system-ui,sans-serif;
+  --body:system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",sans-serif;
+  --mono:ui-monospace,"SF Mono",SFMono-Regular,Menlo,monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    color-scheme:dark;
+    --paper:#0e1411; --card:#151e19; --ink:#e3ebe5; --muted:#93a69a; --line:#26332c; --line-strong:#344439;
+    --fairway:#6dbe93; --fairway-soft:#1c2c23; --flag:#e3b23c; --flag-soft:#2d2717;
+    --bad:#e0826d; --user:#1d2922; --wash:#1a241e;
+  }
+}
+:root[data-theme="dark"]{
+  color-scheme:dark;
+  --paper:#0e1411; --card:#151e19; --ink:#e3ebe5; --muted:#93a69a; --line:#26332c; --line-strong:#344439;
+  --fairway:#6dbe93; --fairway-soft:#1c2c23; --flag:#e3b23c; --flag-soft:#2d2717;
+  --bad:#e0826d; --user:#1d2922; --wash:#1a241e;
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--paper);color:var(--ink);font:16px/1.5 var(--body);padding-inline:max(16px,env(safe-area-inset-left,0px));overflow-x:hidden}
+a{color:var(--fairway)}
+.topbar{max-width:1180px;margin:0 auto;padding:14px 0 0;display:flex;justify-content:space-between;align-items:center;gap:12px;font-size:14px}
+.topbar a{text-decoration:none;font-weight:600}
+.topbar a:hover{text-decoration:underline}
+.topbar .who{color:var(--muted);font:500 12px/1.2 var(--mono)}
+.app{max-width:1180px;margin:0 auto;padding-block:14px 0;display:grid;grid-template-columns:320px minmax(0,1fr);gap:24px;align-items:start}
+@media (max-width:860px){.app{grid-template-columns:minmax(0,1fr);gap:16px}.chat{order:-1}}
+
+/* ---------- the card ---------- */
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:18px;display:flex;flex-direction:column;gap:18px;position:sticky;top:16px;min-width:0}
+@media (max-width:860px){.card{position:static;gap:12px}.hide-sm{display:none}}
+.brand{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:2px 10px}
+.brand h1{font:700 30px/1 var(--display);letter-spacing:.01em;margin:0;text-wrap:balance}
+.asof{font:500 12px/1.2 var(--mono);color:var(--muted);text-align:right;white-space:nowrap}
+.eyebrow{font:600 12px/1 var(--display);letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin:0 0 8px}
+.rows{display:grid;grid-template-columns:minmax(0,1fr) auto;border-top:1px solid var(--line)}
+.rows > div{padding:8px 0;border-bottom:1px solid var(--line);min-width:0}
+.rows .lab{font-size:14px;color:var(--muted)}
+.rows .lab small{display:block;font-size:12px;line-height:1.3;opacity:.9}
+@media (max-width:860px){.rows .lab small{display:none}}
+.rows .val{font:500 19px/1.2 var(--mono);text-align:right;font-variant-numeric:tabular-nums;align-self:center;padding-left:8px}
+.spark{width:100%;height:auto;display:block}
+.spark text{font:11px var(--mono);fill:var(--muted)}
+.legend{display:flex;gap:14px;font-size:12px;color:var(--muted);margin-top:4px;flex-wrap:wrap}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:50%;background:var(--fairway);vertical-align:-1px;margin-right:5px}
+.legend i.line{border-radius:0;height:2px;width:14px;vertical-align:3px;background:var(--flag)}
+.yardage{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums}
+.yardage th{font:600 11px/1 var(--display);letter-spacing:.1em;text-transform:uppercase;color:var(--muted);text-align:right;padding:0 0 6px}
+.yardage th:first-child,.yardage td:first-child{text-align:left}
+.yardage td{font:14px/1.2 var(--mono);text-align:right;padding:5px 0;border-top:1px solid var(--line)}
+.yardage td.live,.live{color:var(--fairway)}
+.fine{font-size:12px;color:var(--muted);line-height:1.4;margin:6px 0 0}
+
+/* ---------- chat column ---------- */
+.chat{display:flex;flex-direction:column;min-height:calc(100vh - 60px);min-width:0}
+@media (max-width:860px){.chat{min-height:0}}
+.panel{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:20px}
+.panel h2{font:700 26px/1.1 var(--display);margin:0 0 6px;text-wrap:balance}
+.panel p{margin:0 0 12px;color:var(--muted);max-width:62ch}
+.panel p:last-child{margin-bottom:0}
+.gate form{display:flex;flex-wrap:wrap;gap:8px;align-items:stretch;margin-top:4px}
+.gate input{flex:1 1 220px;min-width:0;font:16px/1.3 var(--body);color:var(--ink);background:var(--paper);border:1px solid var(--line-strong);border-radius:8px;padding:10px 12px}
+.gate .msg-line{min-height:1.4em;margin:10px 0 6px;font-size:14px}
+.gate .msg-line.warn{color:var(--bad)}
+.thread{flex:1;display:flex;flex-direction:column;gap:18px;padding-bottom:12px}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+button.chip{font:600 14px/1.2 var(--body);color:var(--ink);background:var(--fairway-soft);border:1px solid transparent;border-radius:999px;padding:8px 13px;cursor:pointer;text-align:left}
+button.chip:hover{border-color:var(--fairway)}
+button.chip:disabled{cursor:default;opacity:.6}
+a:focus-visible,button:focus-visible,textarea:focus-visible,input:focus-visible{outline:2px solid var(--fairway);outline-offset:2px}
+.msg{max-width:100%;scroll-margin:16px 0 160px}
+.msg.user{align-self:flex-end;background:var(--user);border-radius:12px 12px 2px 12px;padding:10px 14px;max-width:min(85%,640px);white-space:pre-wrap;overflow-wrap:anywhere}
+.msg.bot{background:var(--card);border:1px solid var(--line);border-radius:2px 12px 12px 12px;padding:14px 16px;overflow-wrap:anywhere}
+.who-tag{font:600 12px/1 var(--display);letter-spacing:.12em;text-transform:uppercase;color:var(--fairway);margin-bottom:8px}
+.answer > :first-child{margin-top:0}.answer > :last-child{margin-bottom:0}
+.answer p,.answer ul,.answer ol,.answer blockquote{margin:0 0 10px}
+.answer ul,.answer ol{padding-left:22px}
+.answer li{margin:2px 0}
+.answer h3,.answer h4{font:700 18px/1.2 var(--display);letter-spacing:.02em;margin:14px 0 6px}
+.answer h4{font-size:16px}
+.answer code{font:13px var(--mono);background:var(--fairway-soft);padding:1px 4px;border-radius:4px}
+.answer pre{background:var(--wash);padding:10px;border-radius:6px;overflow-x:auto}
+.answer pre code{background:none;padding:0}
+.answer blockquote{border-left:3px solid var(--line-strong);padding:2px 10px;color:var(--muted)}
+.answer hr{border:0;border-top:1px solid var(--line);margin:12px 0}
+.answer .tbl{overflow-x:auto;margin:6px 0 12px}
+.answer table{border-collapse:collapse;font-size:14px;font-variant-numeric:tabular-nums;min-width:60%}
+.answer th{font:600 12px/1.2 var(--display);letter-spacing:.08em;text-transform:uppercase;color:var(--muted);text-align:left;padding:4px 12px 6px 0;border-bottom:1px solid var(--line-strong)}
+.answer td{padding:5px 12px 5px 0;border-bottom:1px solid var(--line);font-family:var(--mono);font-size:13px}
+.answer th.r,.answer td.r{text-align:right}
+.answer th.c,.answer td.c{text-align:center}
+.activity{font:12px/1.5 var(--mono);color:var(--muted);margin:0 0 8px;display:flex;flex-direction:column;gap:2px}
+.activity span::before{content:"\21B3  ";color:var(--flag)}
+.thinking{color:var(--muted);font-style:italic}
+.note{font-size:13px;color:var(--muted);margin-top:8px}
+.note.warn{color:var(--bad);white-space:pre-wrap}
+
+.composer{position:sticky;bottom:0;background:linear-gradient(to top,var(--paper) 78%,transparent);padding-block:12px calc(12px + env(safe-area-inset-bottom,0px))}
+.chat:has(#intro:not([hidden])) .composer{position:static;background:none}
+.box{display:flex;gap:8px;align-items:flex-end;background:var(--card);border:1px solid var(--line-strong);border-radius:12px;padding:8px}
+.box textarea{flex:1;min-width:0;border:0;background:transparent;color:var(--ink);font:16px/1.4 var(--body);resize:none;min-height:26px;max-height:180px;padding:6px;outline:none}
+.btn{font:700 15px/1 var(--display);letter-spacing:.08em;text-transform:uppercase;border:0;border-radius:8px;padding:11px 16px;cursor:pointer;background:var(--fairway);color:var(--card);white-space:nowrap}
+.btn:disabled{opacity:.45;cursor:default}
+.btn.stop{background:var(--bad)}
+.opts{display:flex;justify-content:space-between;align-items:flex-start;gap:8px 14px;flex-wrap:wrap;font-size:13px;color:var(--muted);margin-top:8px}
+.opts .links{display:flex;gap:14px}
+button.link{background:none;border:0;color:var(--muted);font:inherit;text-decoration:underline;cursor:pointer;padding:0;white-space:nowrap}
+.banner{background:var(--flag-soft);border:1px solid var(--flag);border-radius:10px;padding:12px 14px;font-size:14px;margin-bottom:12px}
+@media (prefers-reduced-motion: reduce){*{scroll-behavior:auto!important;transition:none!important}}
+</style>
+</head>
+<body>
+<nav class="topbar" aria-label="Site">
+  <a id="home" href="../">&larr; Golf dashboard</a>
+  <span class="who" id="model"></span>
+</nav>
+<div class="app">
+  <aside class="card" aria-label="Scorecard summary">
+    <div class="brand"><h1 id="title">Caddie</h1><div class="asof" id="asof">loading&hellip;</div></div>
+    <section>
+      <p class="eyebrow">The card</p>
+      <div class="rows" id="kpis"></div>
+    </section>
+    <section class="hide-sm">
+      <p class="eyebrow">Strokes over par, per 9 holes</p>
+      <svg class="spark" id="spark" viewBox="0 0 300 120" role="img" aria-label="Score per 9 holes by round"></svg>
+      <div class="legend"><span><i></i>round</span><span><i class="line"></i>5-round average</span><span>higher = better</span></div>
+    </section>
+    <section class="hide-sm">
+      <p class="eyebrow">Yardage book</p>
+      <table class="yardage" id="yardage"><thead><tr><th>Club</th><th>Median</th><th>Shots</th></tr></thead><tbody></tbody></table>
+      <p class="fine">GPS distance to the next shot, roll included. <span class="live">Green</span> = median of live-tracked shots; the rest were tapped on the map after the round.</p>
+    </section>
+  </aside>
+
+  <main class="chat" id="chat-col">
+    <noscript><div class="panel"><h2>The caddie needs JavaScript</h2><p>Turn JavaScript on to chat.</p></div></noscript>
+    <div id="banner"></div>
+
+    <section class="panel" id="offline" hidden>
+      <h2>The caddie isn't connected yet</h2>
+      <p>This chat needs its relay: a small server that keeps the Meta API key off this public page and passes
+        questions to Muse Spark. Once it is set up, questions work here. The card still works.</p>
+    </section>
+
+    <section class="panel gate" id="gate" hidden>
+      <h2 id="gate-title">Ask the Caddie</h2>
+      <p id="gate-text">The caddie chat is private. Enter the passcode to ask questions; the card is open to everyone.</p>
+      <form id="gate-form" action="#" method="post" autocomplete="on">
+        <input id="passcode" name="passcode" type="password" autocomplete="current-password" placeholder="Passcode" aria-label="Passcode" required>
+        <button class="btn" id="unlock" type="submit">Unlock</button>
+      </form>
+      <p class="msg-line" id="gate-msg" role="status" aria-live="polite"></p>
+      <p class="fine">It is remembered in this browser until you choose Forget passcode.</p>
+    </section>
+
+    <div id="chat" hidden>
+      <div class="thread" id="thread" aria-live="polite">
+        <div class="panel" id="intro">
+          <h2>Ask about the golf</h2>
+          <p>Muse Spark reads the rounds, hole-by-hole scores, club distances and lessons published with this site, and looks up what it needs.</p>
+          <div class="chips" id="chips"></div>
+        </div>
+      </div>
+      <div class="composer">
+        <form class="box" id="form" autocomplete="off">
+          <textarea id="q" rows="1" maxlength="4000" placeholder="Ask about your golf&hellip;" aria-label="Your question"></textarea>
+          <button class="btn" id="send" type="submit" disabled>Ask</button>
+        </form>
+        <div class="opts">
+          <span>Questions and the data they need go to Meta's Muse Spark.</span>
+          <span class="links"><button class="link" type="button" id="clear">Clear chat</button><button class="link" type="button" id="forget">Forget passcode</button></span>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<script type="application/json" id="caddie-config">{"worker_url":"https:\/\/golf-caddie.golf-caddie-worker.workers.dev","max_rounds":6}</script>
+<script>
+(() => {
+"use strict";
+const $ = (id) => document.getElementById(id);
+const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
+
+let CONFIG = {};
+try { CONFIG = JSON.parse($("caddie-config").textContent) || {}; } catch (e) { CONFIG = {}; }
+const WORKER = typeof CONFIG.worker_url === "string" && /^https?:\/\/[^\s/]+/.test(CONFIG.worker_url) ? CONFIG.worker_url.replace(/\/+$/, "") : "";
+const MAX_ROUNDS = Math.max(1, Math.min(8, Number(CONFIG.max_rounds) || 6));   // rounds of lookups; then one final call
+const BASE = /\/caddie\/(index\.html)?$/.test(location.pathname) ? "../" : "./";
+const PASS_KEY = "golf-caddie.passcode";         // localStorage key for the passcode (this browser only)
+const MAX_TURNS = 16;                            // messages of earlier conversation sent with a question
+const MAX_ANSWER_KEPT = 8000;                    // characters of an earlier answer kept in the conversation
+const TOOL_RESULT_CHARS = 20000;                 // one lookup result (the relay accepts up to 24 KB)
+const TOOL_BUDGET = 80000;                       // lookup data per question; then the next call is the last
+const MAX_CALLS_PER_STEP = 8;
+const MAX_BODY = 190000;                         // the relay refuses bodies over 200 KB
+const LAST_CALL_NOTE = "(From the app, not Shane: the lookup limit for this question is reached. Answer now, in markdown, with what you have, and say what you couldn't check.)";
+
+let DATA = null, busy = false, ctl = null, memoryPass = "";
+const turns = [];                                // [{role, content}]: lives in this tab only
+
+const SUGGESTIONS = [
+  "Am I improving?",
+  "Which holes cost me the most?",
+  "How far do I hit each club?",
+  "Am I losing more strokes getting to the green or putting?",
+  "Compare my first rounds with my latest",
+  "What should I practice next?",
+];
+
+// ---------------------------------------------------------------- passcode storage
+const store = {
+  get() { try { return localStorage.getItem(PASS_KEY) || memoryPass; } catch (e) { return memoryPass; } },
+  set(v) { memoryPass = v; try { localStorage.setItem(PASS_KEY, v); } catch (e) { /* private mode: memory only */ } },
+  clear() { memoryPass = ""; try { localStorage.removeItem(PASS_KEY); } catch (e) { /* nothing stored */ } },
+};
+
+// ---------------------------------------------------------------- the card
+function fmtDate(iso) {
+  if (!iso) return "–";
+  const [y, m, d] = String(iso).split("-").map(Number);
+  return new Date(y, m - 1, d).toLocaleDateString(undefined, { month: "short", day: "numeric" });
+}
+const signed = (v) => (v > 0 ? "+" : "") + v;
+
+function renderCard() {
+  const who = DATA.player ? DATA.player + "'s Caddie" : "Caddie";
+  $("title").textContent = who;
+  document.title = who;
+  $("asof").textContent = DATA.data_through ? "through " + fmtDate(DATA.data_through) : "no rounds yet";
+  const kp = $("kpis"); kp.textContent = "";
+  for (const k of (DATA.headline && DATA.headline.kpis) || []) {
+    const lab = el("div", "lab", k.label);
+    if (k.note) lab.append(el("small", null, k.note));
+    kp.append(lab, el("div", "val", k.value == null ? "–" : String(k.value)));
+  }
+  if (!kp.children.length) kp.append(el("div", "lab", "No rounds yet."), el("div", "val", ""));
+
+  const rs = (DATA.tables.rounds || []).filter((r) => typeof r.to_par_per9 === "number");
+  const svg = $("spark"); svg.textContent = "";
+  if (rs.length >= 2) {
+    const W = 300, H = 120, L = 30, R = 8, T = 8, B = 18;
+    const ys = rs.map((r) => r.to_par_per9);
+    const lo = Math.floor(Math.min(...ys) / 5) * 5, hi = Math.max(Math.ceil(Math.max(...ys) / 5) * 5, lo + 5);
+    const x = (i) => L + (W - L - R) * (i / (rs.length - 1));
+    const y = (v) => T + (H - T - B) * (v - lo) / (hi - lo);        // more over par sits lower
+    const ns = "http://www.w3.org/2000/svg";
+    const mk = (t, a) => { const n = document.createElementNS(ns, t); for (const k in a) n.setAttribute(k, a[k]); return n; };
+    for (const v of [lo, (lo + hi) / 2, hi]) {
+      svg.append(mk("line", { x1: L, x2: W - R, y1: y(v), y2: y(v), stroke: "var(--line)", "stroke-width": 1 }));
+      const t = mk("text", { x: L - 6, y: y(v) + 4, "text-anchor": "end" }); t.textContent = signed(Math.round(v)); svg.append(t);
+    }
+    const avg = rs.map((r, i) => { const w = rs.slice(Math.max(0, i - 4), i + 1).map((q) => q.to_par_per9); return w.reduce((a, b) => a + b, 0) / w.length; });
+    svg.append(mk("polyline", { points: avg.map((v, i) => x(i) + "," + y(v)).join(" "), fill: "none", stroke: "var(--flag)", "stroke-width": 2.5, "stroke-linejoin": "round" }));
+    rs.forEach((r, i) => {
+      const c = mk("circle", { cx: x(i), cy: y(r.to_par_per9), r: r.holes === 18 ? 4 : 3.2, fill: "var(--fairway)" });
+      const tt = mk("title", {}); tt.textContent = fmtDate(r.date) + " · " + (r.course || "") + " · " + (r.gross ?? "") + " (" + signed(r.to_par ?? "") + ")";
+      c.append(tt); svg.append(c);
+    });
+    const t1 = mk("text", { x: L, y: H - 3 }); t1.textContent = fmtDate(rs[0].date);
+    const t2 = mk("text", { x: W - R, y: H - 3, "text-anchor": "end" }); t2.textContent = fmtDate(rs[rs.length - 1].date);
+    svg.append(t1, t2);
+  }
+  const tb = $("yardage").tBodies[0]; tb.textContent = "";
+  for (const c of (DATA.headline && DATA.headline.club_medians) || []) {
+    if (c.median == null) continue;
+    const useLive = (c.n_live || 0) >= 3 && c.median_live != null;
+    const tr = el("tr");
+    tr.append(el("td", null, c.club), el("td", useLive ? "live" : null, Math.round(useLive ? c.median_live : c.median) + " yd"), el("td", null, String(c.n)));
+    tb.append(tr);
+  }
+  if (!tb.rows.length) { const tr = el("tr"); const td = el("td", null, "No tracked shots yet."); td.colSpan = 3; tr.append(td); tb.append(tr); }
+}
+
+// ---------------------------------------------------------------- lookups (run here, over golf-data.json)
+const TABLES = ["rounds", "holes", "shots", "events", "handicap", "courses"];
+const norm = (v) => (typeof v === "string" ? v.trim().toLowerCase() : v);
+function typed(table, col, v) {
+  const rows = DATA.tables[table] || [];
+  const sample = (rows.find((r) => r[col] != null) || {})[col];
+  if (typeof sample === "number" && typeof v === "string" && v.trim() !== "" && !isNaN(Number(v))) return Number(v);
+  if (typeof sample === "boolean" && typeof v === "string") return v.toLowerCase() === "true";
+  return v;
+}
+const eq = (a, b) => a === b || (a != null && b != null && norm(String(a)) === norm(String(b)));
+const OPS = {
+  "=": eq, "!=": (a, b) => !eq(a, b),
+  ">": (a, b) => a != null && a > b, ">=": (a, b) => a != null && a >= b,
+  "<": (a, b) => a != null && a < b, "<=": (a, b) => a != null && a <= b,
+  "in": (a, b) => Array.isArray(b) && b.some((x) => eq(a, x)),
+  "contains": (a, b) => a != null && norm(Array.isArray(a) ? a.join(" ") : String(a)).includes(norm(String(b))),
+  "between": (a, b) => Array.isArray(b) && b.length === 2 && a != null && a >= b[0] && a <= b[1],
+  "is_null": (a) => a == null, "not_null": (a) => a != null,
+};
+function agg(fn, vals, n) {
+  if (fn === "count") return n;
+  if (!vals.length) return null;
+  const s = [...vals].sort((a, b) => a - b), sum = vals.reduce((a, b) => a + b, 0);
+  const r2 = (x) => Math.round(x * 100) / 100;
+  return { sum: r2(sum), avg: r2(sum / vals.length), min: s[0], max: s[s.length - 1],
+           median: r2(s.length % 2 ? s[(s.length - 1) / 2] : (s[s.length / 2 - 1] + s[s.length / 2]) / 2) }[fn] ?? null;
+}
+function queryTable(input) {
+  const table = String(input.table || "");
+  if (!TABLES.includes(table)) throw new Error("table must be one of " + TABLES.join(", "));
+  let rows = DATA.tables[table] || [];
+  const cols = new Set(Object.keys((DATA.dictionary || {})[table] || rows[0] || {}));
+  const known = (c) => { if (!cols.has(c)) throw new Error(`unknown column "${c}" in ${table}; columns: ${[...cols].join(", ")}`); return c; };
+  for (const f of Array.isArray(input.filters) ? input.filters : []) {
+    const op = OPS[f.op || "="]; if (!op) throw new Error("unknown op " + f.op);
+    const col = known(String(f.column));
+    const val = Array.isArray(f.value) ? f.value.map((v) => typed(table, col, v)) : typed(table, col, f.value);
+    rows = rows.filter((r) => op(r[col], val));
+  }
+  const matched = rows.length;
+  const gb = (Array.isArray(input.group_by) ? input.group_by : []).map((c) => known(String(c)));
+  const aggs = Array.isArray(input.aggregates) ? input.aggregates : [];
+  if (gb.length || aggs.length) {
+    const groups = new Map();
+    for (const r of rows) { const k = JSON.stringify(gb.map((c) => r[c])); if (!groups.has(k)) groups.set(k, []); groups.get(k).push(r); }
+    rows = [...groups.values()].map((g) => {
+      const o = {}; gb.forEach((c) => { o[c] = g[0][c]; });
+      for (const a of aggs.length ? aggs : [{ fn: "count" }]) {
+        const fn = String(a.fn || "count"); const col = a.column ? known(String(a.column)) : null;
+        const vals = col ? g.map((r) => r[col]).filter((v) => typeof v === "number") : [];
+        o[a.as || (col ? `${fn}_${col}` : fn)] = fn === "count" ? (col ? g.filter((r) => r[col] != null).length : g.length) : agg(fn, vals, g.length);
+      }
+      return o;
+    });
+  } else if (Array.isArray(input.columns) && input.columns.length) {
+    const cs = input.columns.map((c) => known(String(c)));
+    rows = rows.map((r) => Object.fromEntries(cs.map((c) => [c, r[c]])));
+  }
+  for (const o of [...(Array.isArray(input.order_by) ? input.order_by : [])].reverse()) {
+    const c = String(o.column), d = o.desc ? -1 : 1;
+    rows = [...rows].sort((a, b) => (a[c] == null) - (b[c] == null) || (a[c] < b[c] ? -d : a[c] > b[c] ? d : 0));
+  }
+  const limit = Math.max(1, Math.min(200, Number(input.limit) || 100));
+  const out = rows.slice(0, limit);
+  return { table, matched_rows: matched, returned: out.length, truncated: rows.length > out.length, rows: out };
+}
+function getRound(input) {
+  const key = String(input.round || input.date || "").trim();
+  if (!key) throw new Error("give round (e.g. r16) or date (YYYY-MM-DD)");
+  const all = DATA.tables.rounds || [];
+  const rounds = all.filter((r) => r.round === key || r.date === key).slice(0, 3);
+  if (!rounds.length) throw new Error("no round " + key + "; rounds run " + ((all[0] || {}).date || "?") + " to " + (DATA.data_through || "?"));
+  return rounds.map((r) => ({ ...r,
+    holes: (DATA.tables.holes || []).filter((h) => h.round === r.round).map(({ round, date, course, ...h }) => h),
+    shots: (DATA.tables.shots || []).filter((s) => s.round === r.round).map(({ round, date, course, ...s }) => s) }));
+}
+const TOOLS = [
+  { type: "function", name: "query_table", strict: false,
+    description: "Filter, group and aggregate one of the golf tables (rounds, holes, shots, events, handicap, courses; columns are listed in the instructions). Returns matching rows or grouped aggregates. Use it for anything the rounds table in the instructions doesn't already answer: hole-by-hole scoring, club distances, lessons and notes, course cards.",
+    parameters: { type: "object", properties: {
+      table: { type: "string", enum: TABLES },
+      filters: { type: "array", items: { type: "object", properties: {
+        column: { type: "string" }, op: { type: "string", enum: Object.keys(OPS) },
+        value: { description: "a string, number or boolean; a list for in and between" } }, required: ["column", "op"] } },
+      group_by: { type: "array", items: { type: "string" } },
+      aggregates: { type: "array", items: { type: "object", properties: {
+        fn: { type: "string", enum: ["count", "sum", "avg", "min", "max", "median"] }, column: { type: "string" }, as: { type: "string" } }, required: ["fn"] } },
+      columns: { type: "array", items: { type: "string" }, description: "columns to return when not grouping" },
+      order_by: { type: "array", items: { type: "object", properties: { column: { type: "string" }, desc: { type: "boolean" } }, required: ["column"] } },
+      limit: { type: "integer", description: "max rows, default 100, max 200" } }, required: ["table"] } },
+  { type: "function", name: "get_round", strict: false,
+    description: "One round in full: the round's totals plus every hole (par, stroke index, strokes, putts, fairway, GIR) and its tracked shots (club, yards). Look it up by alias (r1 = oldest) or date (YYYY-MM-DD).",
+    parameters: { type: "object", properties: { round: { type: "string", description: "round alias like r12" }, date: { type: "string", description: "YYYY-MM-DD" } } } },
+];
+function runTool(name, argsText) {
+  let args = {};
+  try { args = argsText ? JSON.parse(argsText) : {}; } catch (e) { return { output: { error: "arguments were not valid JSON" }, line: name + ": bad arguments" }; }
+  if (!args || typeof args !== "object" || Array.isArray(args)) args = {};
+  try {
+    if (name === "query_table") {
+      const r = queryTable(args);
+      const grouped = (args.group_by && args.group_by.length) || (args.aggregates && args.aggregates.length);
+      return { output: r, line: `looked up ${r.table}: ${r.matched_rows} rows` + (grouped ? ` → ${r.returned} groups` : "") };
+    }
+    if (name === "get_round") {
+      const r = getRound(args);
+      return { output: r, line: "looked up " + r.map((x) => fmtDate(x.date) + (x.course ? " at " + x.course : "")).join(", ") };
+    }
+    return { output: { error: "unknown tool " + name + "; use query_table or get_round" }, line: name + ": unknown tool" };
+  } catch (e) {
+    return { output: { error: String(e && e.message || e) }, line: name + ": " + String(e && e.message || e).slice(0, 80) };
+  }
+}
+function fit(obj, cap) {
+  let s = JSON.stringify(obj);
+  if (s.length <= cap) return s;
+  if (obj && Array.isArray(obj.rows)) {
+    let rows = obj.rows;
+    while (rows.length > 1 && s.length > cap) {
+      rows = rows.slice(0, Math.floor(rows.length * 0.7));
+      s = JSON.stringify({ ...obj, rows, returned: rows.length, truncated: true });
+    }
+    if (s.length <= cap) return s;
+  }
+  return JSON.stringify({ truncated: true, note: "The result was too large; ask for fewer rows or columns.", start: s.slice(0, Math.floor(cap / 2)) });
+}
+
+// ---------------------------------------------------------------- the instructions
+function csv(rows, cols) {
+  const esc = (v) => (v == null ? "" : /[",\n]/.test(String(v)) ? `"${String(v).replace(/"/g, '""')}"` : String(v));
+  return [cols.join(","), ...rows.map((r) => cols.map((c) => esc(r[c])).join(","))].join("\n");
+}
+function localToday() {
+  const d = new Date();
+  return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+}
+function instructions() {
+  const d = DATA, rounds = d.tables.rounds || [], head = d.headline || {};
+  const player = d.player || "Shane";
+  const cols = ["round", "date", "course", "holes", "nine", "gross", "par", "to_par", "to_par_per9", "differential", "hi_after", "b18_handicap", "putts", "putts_partial", "fairways_hit", "fairway_chances", "gir", "gir_chances", "birdies", "pars", "bogeys", "double_plus", "triple_plus"];
+  const shown = rounds.length > 120 ? rounds.slice(-120) : rounds;
+  const dict = Object.entries(d.dictionary || {}).map(([t, c]) => `${t}: ` + Object.entries(c).map(([k, v]) => `${k} (${v})`).join("; ")).join("\n");
+  const clubs = (head.club_medians || []).filter((c) => c.median != null).map((c) => `${c.club} ${Math.round(c.median)} (n=${c.n}${c.median_live != null && c.n_live >= 3 ? ", live " + Math.round(c.median_live) : ""})`).join("; ");
+  return [
+    `You are ${player}'s golf caddie and data analyst, answering on his golf website. Today is ${localToday()}; his data runs through ${d.data_through || "no rounds yet"}. The person asking is ${player}.`,
+    "",
+    "How to answer:",
+    "- Start with the direct answer in a sentence or two, then the numbers behind it. Keep it short; use a small markdown table only when comparing several items.",
+    "- Use the tools for anything the rounds table below doesn't cover (hole-by-hole scoring, shots and club distances, lessons and notes, course cards). Look it up before you claim it.",
+    "- Never invent numbers. If the data can't answer (for example putts weren't tracked), say what's missing.",
+    `- Compare scores per 9 holes (to_par_per9) unless he asks otherwise. He has ${rounds.length} rounds, so mention sample size when it matters, and don't claim that a lesson or change caused an improvement: the before/after comparisons are descriptive.`,
+    "- Write dates like \"Sep 24\". He is a beginner with a high handicap: be practical and honest, and when he asks what to work on, suggest specific beginner-friendly practice (a drill, a target, how many balls).",
+    "- Round ids are aliases r1..rN (r1 = oldest), the same in the table below and in the tools. They are for lookups only: refer to rounds by date and course, never by alias.",
+    "",
+    "Notes about the data:", ...(d.notes || []).map((n) => "- " + n),
+    "",
+    "Headline figures:",
+    ...(head.kpis || []).map((k) => `- ${k.label}: ${k.value}${k.note ? " (" + k.note + ")" : ""}`),
+    ...[head.averages, head.trend, head.scoring_split, head.lesson_sensitivity].filter(Boolean).map((s) => "- " + s),
+    "",
+    "Club medians (yards): " + (clubs || "none tracked yet"),
+    `Lessons and notes logged: ${(d.tables.events || []).length}.`,
+    "",
+    "Tables and columns:", dict,
+    "",
+    `Rounds (${shown.length}${shown.length < rounds.length ? " most recent of " + rounds.length : ""}), oldest first, as CSV:`,
+    shown.length ? csv(shown, cols) : "(no rounds yet)",
+  ].join("\n");
+}
+
+// ---------------------------------------------------------------- markdown: escape first, then only our own tags
+const ESC = { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" };
+const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ESC[c]);
+function emph(t) { // t is already escaped
+  return t
+    .replace(/\*\*(?=\S)([^\n]*?\S)\*\*/g, "<strong>$1</strong>")
+    .replace(/(^|[^\w])__(?=\S)([^\n]*?\S)__(?!\w)/g, "$1<strong>$2</strong>")
+    .replace(/(^|[^\w*])\*(?=[^\s*])([^*\n]*?[^\s*])?\*(?![\w*])/g, (m, pre, body) => (body === undefined ? m : pre + "<em>" + body + "</em>"))
+    .replace(/(^|[^\w])_(?=[^\s_])([^_\n]*?[^\s_])_(?!\w)/g, "$1<em>$2</em>");
+}
+const LINK = /\[([^\]\n]+)\]\(\s*<?(https?:\/\/[^\s<>()]+)>?\s*\)/g;     // only http(s) links become <a>
+const OTHER_LINK = /\[([^\]\n]+)\]\((?:[^()\n]|\([^()\n]*\))*\)/g;        // any other link shows as its text
+function prose(s) {
+  let out = "", last = 0, m;
+  LINK.lastIndex = 0;
+  while ((m = LINK.exec(s))) {
+    out += emph(esc(s.slice(last, m.index).replace(OTHER_LINK, "$1")));
+    out += '<a href="' + esc(m[2]) + '" target="_blank" rel="noopener noreferrer">' + emph(esc(m[1])) + "</a>";
+    last = m.index + m[0].length;
+  }
+  return out + emph(esc(s.slice(last).replace(OTHER_LINK, "$1")));
+}
+function inline(s) { // code spans first, so their contents are never formatted
+  return String(s).split(/(`[^`\n]+`)/g).map((p, i) => (i % 2 ? "<code>" + esc(p.slice(1, -1)) + "</code>" : prose(p))).join("");
+}
+function splitRow(line) {
+  let s = line.trim();
+  if (s.startsWith("|")) s = s.slice(1);
+  if (s.endsWith("|")) s = s.slice(0, -1);
+  return s.split("|").map((c) => c.trim());
+}
+const align = (sep) => splitRow(sep).map((c) => (/^:-+:$/.test(c) ? "c" : /^-+:$/.test(c) ? "r" : ""));
+const cell = (tag, cls, html) => "<" + tag + (cls ? ' class="' + cls + '"' : "") + ">" + html + "</" + tag + ">";
+const LIST = /^\s*([-*+]|\d{1,3}[.)])\s+(.*)$/;
+const TABLE_SEP = /^\s*\|?\s*:?-{2,}:?\s*(\|\s*:?-{2,}:?\s*)*\|?\s*$/;
+function markdown(src) {
+  const lines = String(src || "").replace(/\r\n?/g, "\n").split("\n");
+  const out = [];
+  let para = [];
+  const flush = () => { if (para.length) { out.push("<p>" + inline(para.join(" ")) + "</p>"); para = []; } };
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    let m;
+    if (/^\s*```/.test(line)) {
+      flush();
+      const code = [];
+      i++;
+      while (i < lines.length && !/^\s*```/.test(lines[i])) code.push(lines[i++]);
+      out.push("<pre><code>" + esc(code.join("\n")) + "</code></pre>");
+      continue;
+    }
+    if (!line.trim()) { flush(); continue; }
+    if ((m = /^\s{0,3}(#{1,6})\s+(.*?)\s*#*\s*$/.exec(line))) { flush(); const lvl = m[1].length <= 2 ? 3 : 4; out.push(`<h${lvl}>` + inline(m[2]) + `</h${lvl}>`); continue; }
+    if (/^\s{0,3}([-*_])(\s*\1){2,}\s*$/.test(line)) { flush(); out.push("<hr>"); continue; }
+    if (line.includes("|") && i + 1 < lines.length && TABLE_SEP.test(lines[i + 1]) && lines[i + 1].includes("-")) {
+      flush();
+      const head = splitRow(line), al = align(lines[i + 1]), rows = [];
+      i += 2;
+      while (i < lines.length && lines[i].trim() && lines[i].includes("|")) rows.push(splitRow(lines[i++]));
+      i--;
+      out.push('<div class="tbl"><table><thead><tr>' + head.map((c, k) => cell("th", al[k], inline(c))).join("") +
+        "</tr></thead><tbody>" + rows.map((r) => "<tr>" + head.map((_, k) => cell("td", al[k], inline(r[k] || ""))).join("") + "</tr>").join("") + "</tbody></table></div>");
+      continue;
+    }
+    if ((m = LIST.exec(line))) {
+      flush();
+      const ordered = /\d/.test(m[1]);
+      const items = [m[2]];
+      while (i + 1 < lines.length) {
+        const next = lines[i + 1], n = LIST.exec(next);
+        if (n && /\d/.test(n[1]) === ordered) { items.push(n[2]); i++; }
+        else if (!n && next.trim() && /^\s{2,}\S/.test(next)) { items[items.length - 1] += " " + next.trim(); i++; }
+        else break;
+      }
+      const tag = ordered ? "ol" : "ul";
+      out.push(`<${tag}>` + items.map((t) => "<li>" + inline(t) + "</li>").join("") + `</${tag}>`);
+      continue;
+    }
+    if ((m = /^\s*>\s?(.*)$/.exec(line))) {
+      flush();
+      const q = [m[1]];
+      while (i + 1 < lines.length && /^\s*>/.test(lines[i + 1])) q.push(lines[++i].replace(/^\s*>\s?/, ""));
+      out.push("<blockquote>" + inline(q.join(" ")) + "</blockquote>");
+      continue;
+    }
+    para.push(line.trim());
+  }
+  flush();
+  return out.join("");
+}
+
+// ---------------------------------------------------------------- talking to the relay
+class RelayError extends Error { constructor(code) { super(code); this.code = code; } }
+const COPY = {
+  bad_passcode: "That passcode isn't right. Enter it again.",
+  no_passcode: "Enter the passcode first.",
+  not_configured: "The caddie's relay isn't set up yet (its Meta key or passcode is missing).",
+  too_many_requests: "Too many questions in a minute. Wait a moment, then ask again.",
+  key_rejected: "Meta rejected the relay's API key. It needs to be stored again in the relay.",
+  out_of_credits: "The Meta API account is out of credits. Add credits at dev.meta.ai, then ask again.",
+  rate_limited: "Meta is rate-limiting the caddie right now. Try again in a minute.",
+  model_unavailable: "Meta won't serve the caddie's model to this key. Check the relay's MODEL setting.",
+  too_long: "The conversation got too long. Clear the chat and ask again.",
+  too_large: "The conversation got too long. Clear the chat and ask again.",
+  bad_request: "Meta refused that request. Try asking it a different way.",
+  timeout: "Meta took too long to answer. Ask a narrower question, or try again.",
+  upstream_error: "Meta's API is having problems right now. Try again in a minute.",
+  network: "Couldn't reach the caddie's relay. Check the connection and ask again.",
+  forbidden_origin: "The relay only answers the published caddie page.",
+  invalid_request: "The relay refused this page's request. Reload the page and ask again.",
+  invalid_json: "The relay refused this page's request. Reload the page and ask again.",
+  unsupported_media_type: "The relay refused this page's request. Reload the page and ask again.",
+  internal: "The relay hit an unexpected error. Ask again.",
+  refused: "Meta's content filter stopped this answer. Try asking it differently.",
+  cut_off: "The answer ran past the output limit. Ask for less at a time.",
+  no_answer: "The caddie ran out of lookups before it could answer. Ask a narrower question.",
+};
+const copy = (code) => COPY[code] || "The caddie couldn't answer. Ask again.";
+
+async function relay(payload, passcode, signal) {
+  let res;
+  try {
+    res = await fetch(WORKER + "/chat", {
+      method: "POST", mode: "cors", credentials: "omit", cache: "no-store", referrerPolicy: "no-referrer", signal,
+      headers: { "Content-Type": "application/json", "X-Caddie-Passcode": passcode },
+      body: typeof payload === "string" ? payload : JSON.stringify(payload),
+    });
+  } catch (e) {
+    if (e && e.name === "AbortError") throw e;
+    throw new RelayError("network");
+  }
+  let data = null;
+  try { data = await res.json(); } catch (e) { data = null; }
+  const code = data && data.error && typeof data.error.code === "string" ? data.error.code : null;
+  return { status: res.status, ok: res.ok, data, code };
+}
+
+// Lookups as plain text, for a last call without tools when Meta refuses the tool items.
+function flatten(items) {
+  const out = [], calls = {};
+  let buf = [];
+  const push = () => { if (buf.length) { out.push({ role: "user", content: ("Lookup results so far (from the app):\n" + buf.join("\n\n")).slice(0, 38000) }); buf = []; } };
+  for (const it of items) {
+    if (it.type === "function_call") { calls[it.call_id] = it.name + " " + it.arguments; continue; }
+    if (it.type === "function_call_output") { buf.push((calls[it.call_id] || "lookup") + "\n" + it.output.slice(0, 12000)); continue; }
+    push();
+    out.push(it);
+  }
+  push();
+  return out;
+}
+
+// One question: up to MAX_ROUNDS rounds of lookups, then one final call without tools.
+async function answer(question, history, view, signal) {
+  const passcode = store.get();
+  const work = [{ role: "user", content: question }];
+  const instr = instructions();
+  let rounds = 0, used = 0, retried = false;
+  for (;;) {
+    const final = rounds >= MAX_ROUNDS || used >= TOOL_BUDGET;
+    let past = history.slice();
+    let payload = { instructions: instr, input: [...past, ...work], tools: TOOLS, final };
+    let body = JSON.stringify(payload);
+    while (body.length > MAX_BODY && past.length) {
+      past = past.slice(2);
+      payload = { ...payload, input: [...past, ...work] };
+      body = JSON.stringify(payload);
+    }
+    if (body.length > MAX_BODY) throw new RelayError("too_long");
+    const r = await relay(body, passcode, signal);
+    if (!r.ok) {
+      if (r.code === "bad_request" && !retried && work.length > 1) {        // Meta refused the tool items: answer from text
+        retried = true;
+        work.splice(0, work.length, ...flatten(work));
+        work.push({ role: "user", content: LAST_CALL_NOTE });
+        rounds = MAX_ROUNDS;
+        view.log("Meta refused the lookup format; answering from the results as text");
+        continue;
+      }
+      throw new RelayError(r.code || (r.status === 403 ? "forbidden_origin" : "upstream_error"));
+    }
+    const d = r.data || {};
+    const out = Array.isArray(d.output) ? d.output : [];
+    const texts = out.filter((o) => o && o.type === "output_text").map((o) => String(o.text || ""));
+    const calls = out.filter((o) => o && o.type === "function_call");
+    if (d.status === "incomplete") {
+      if (d.incomplete_reason === "content_filter") throw new RelayError("refused");
+      if (calls.length || !texts.join("").trim()) throw new RelayError("cut_off");
+      return { text: texts.join(""), cut: true, model: d.model };
+    }
+    if (!calls.length || final) {
+      const text = texts.join("");
+      if (!text.trim()) throw new RelayError(calls.length ? "no_answer" : "upstream_error");
+      return { text, cut: false, model: d.model };
+    }
+    for (const o of out) {                        // replay in order: text, then the calls and their results
+      if (o.type === "output_text" && o.text) work.push({ role: "assistant", content: String(o.text).slice(0, 38000) });
+    }
+    calls.forEach((c, i) => {
+      const args = String(c.arguments || "");
+      const call = { type: "function_call", call_id: c.call_id, name: c.name, arguments: args.length > 16000 ? "{}" : args };
+      let output;
+      if (i >= MAX_CALLS_PER_STEP) output = JSON.stringify({ error: `At most ${MAX_CALLS_PER_STEP} lookups at once.` });
+      else if (args.length > 16000) output = JSON.stringify({ error: "arguments too long" });
+      else {
+        const t = runTool(c.name, args);
+        output = fit(t.output, Math.max(2000, Math.min(TOOL_RESULT_CHARS, TOOL_BUDGET - used)));
+        used += output.length;
+        view.log(t.line);
+      }
+      work.push(call, { type: "function_call_output", call_id: c.call_id, output });
+    });
+    rounds += 1;
+    if (rounds >= MAX_ROUNDS || used >= TOOL_BUDGET) {
+      work.push({ role: "user", content: LAST_CALL_NOTE });
+      view.log("lookup limit reached; answering with what it has");
+    }
+  }
+}
+
+// ---------------------------------------------------------------- chat UI
+const smooth = () => (window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth");
+function addUser(text) { const m = el("div", "msg user", text); $("thread").append(m); m.scrollIntoView({ block: "end", behavior: smooth() }); }
+function addBot() {
+  const m = el("div", "msg bot");
+  const act = el("div", "activity"); act.hidden = true;
+  const ans = el("div", "answer"); ans.append(el("span", "thinking", "Thinking…"));
+  const note = el("div", "note"); note.hidden = true;
+  m.append(el("div", "who-tag", "Caddie"), act, ans, note);
+  $("thread").append(m);
+  m.scrollIntoView({ block: "end", behavior: smooth() });
+  return { m, ans, note, log(text) { act.hidden = false; act.append(el("span", null, text)); } };
+}
+function setBusy(b) {
+  busy = b;
+  const send = $("send");
+  send.textContent = b ? "Stop" : "Ask";
+  send.classList.toggle("stop", b);
+  send.disabled = !b && !$("q").value.trim();
+  for (const c of $("chips").children) c.disabled = b;
+}
+function warn(view, text) { view.note.hidden = false; view.note.classList.add("warn"); view.note.textContent = text; }
+
+async function ask(text) {
+  text = String(text || "").trim();
+  if (!text || busy || !DATA || !WORKER) return;
+  if (!store.get()) { showGate(); return; }
+  $("intro").hidden = true;
+  addUser(text);
+  const history = turns.slice(-MAX_TURNS);
+  const view = addBot();
+  ctl = new AbortController();
+  setBusy(true);
+  try {
+    const res = await answer(text, history, view, ctl.signal);
+    view.ans.innerHTML = markdown(res.text);
+    view.m.scrollIntoView({ block: "start", behavior: smooth() });
+    if (res.cut) warn(view, "The answer was cut short. Ask for less at a time.");
+    if (res.model) $("model").textContent = res.model;
+    turns.push({ role: "user", content: text },
+               { role: "assistant", content: res.text.length > MAX_ANSWER_KEPT ? res.text.slice(0, MAX_ANSWER_KEPT - 40) + "\n\n[...rest of this answer cut]" : res.text });
+    while (turns.length > MAX_TURNS) turns.splice(0, 2);
+  } catch (e) {
+    view.ans.textContent = "";
+    if (e && e.name === "AbortError") { view.note.hidden = false; view.note.textContent = "Stopped."; }
+    else {
+      const code = e && e.code;
+      warn(view, copy(code));
+      if (code === "bad_passcode" || code === "no_passcode") {
+        store.clear();
+        $("q").value = text;
+        showGate(copy(code), true);
+      }
+    }
+  } finally {
+    ctl = null;
+    setBusy(false);
+  }
+}
+
+// ---------------------------------------------------------------- states: not connected, passcode, chat
+function showBanner(text) { const b = $("banner"); b.textContent = ""; if (text) b.append(el("div", "banner", text)); }
+function showGate(message, isWarn) {
+  $("offline").hidden = true; $("chat").hidden = true; $("gate").hidden = false;
+  const msg = $("gate-msg");
+  msg.textContent = message || "";
+  msg.classList.toggle("warn", Boolean(isWarn));
+  $("passcode").value = "";
+  $("passcode").focus({ preventScroll: true });
+}
+function showChat() {
+  $("offline").hidden = true; $("gate").hidden = true; $("chat").hidden = false;
+  setBusy(false);
+}
+function showOffline() { $("gate").hidden = true; $("chat").hidden = true; $("offline").hidden = false; }
+
+// A passcode is checked without calling Meta: the relay answers {} with "empty_request" once the passcode is right.
+async function unlock(pass) {
+  pass = String(pass || "").trim();
+  const msg = $("gate-msg");
+  msg.classList.remove("warn");
+  if (!pass) { msg.textContent = copy("no_passcode"); msg.classList.add("warn"); return; }
+  if (!/^[\x20-\x7e]+$/.test(pass)) {
+    msg.textContent = "Use plain letters, numbers, spaces and punctuation (no emoji or accented letters)."; msg.classList.add("warn"); return;
+  }
+  const btn = $("unlock");
+  btn.disabled = true; btn.textContent = "Checking…"; msg.textContent = "";
+  try {
+    const r = await relay("{}", pass);
+    if (r.status === 400 && r.code === "empty_request") { store.set(pass); showChat(); $("q").focus({ preventScroll: true }); return; }
+    const code = r.code === "too_many_requests" ? "too_many_requests" : r.code || (r.status === 403 ? "forbidden_origin" : "upstream_error");
+    msg.textContent = code === "too_many_requests" ? "Too many tries. Wait a minute, then try again." : copy(code);
+    msg.classList.add("warn");
+  } catch (e) {
+    msg.textContent = copy(e && e.code || "network"); msg.classList.add("warn");
+  } finally {
+    btn.disabled = false; btn.textContent = "Unlock";
+  }
+}
+
+// ---------------------------------------------------------------- wiring
+const q = $("q");
+q.addEventListener("input", () => { q.style.height = "auto"; q.style.height = Math.min(q.scrollHeight, 180) + "px"; if (!busy) $("send").disabled = !q.value.trim(); });
+q.addEventListener("keydown", (e) => {
+  if (e.key === "Escape" && busy && ctl) { e.preventDefault(); ctl.abort(); return; }
+  if (e.key === "Enter" && !e.shiftKey && !e.isComposing) { e.preventDefault(); if (!busy) $("form").requestSubmit(); }
+});
+$("form").addEventListener("submit", (e) => {
+  e.preventDefault();
+  if (busy) { if (ctl) ctl.abort(); return; }
+  const text = q.value; q.value = ""; q.style.height = "auto"; ask(text);
+});
+$("gate-form").addEventListener("submit", (e) => { e.preventDefault(); unlock($("passcode").value); });
+$("clear").addEventListener("click", () => {
+  if (busy && ctl) ctl.abort();
+  turns.length = 0;
+  for (const m of [...$("thread").querySelectorAll(".msg")]) m.remove();
+  $("intro").hidden = false;
+  q.focus({ preventScroll: true });
+});
+$("forget").addEventListener("click", () => {
+  if (busy && ctl) ctl.abort();
+  store.clear();
+  showGate("Passcode forgotten on this device.");
+});
+for (const s of SUGGESTIONS) { const c = el("button", "chip", s); c.type = "button"; c.addEventListener("click", () => ask(s)); $("chips").append(c); }
+$("home").setAttribute("href", BASE);
+
+async function boot() {
+  try {
+    const r = await fetch(BASE + "golf-data.json", { cache: "no-store", credentials: "omit" });
+    if (!r.ok) throw new Error(String(r.status));
+    DATA = await r.json();
+    if (!DATA || !DATA.tables) throw new Error("no tables");
+    renderCard();
+  } catch (e) {
+    $("asof").textContent = "data missing";
+    showBanner("Couldn't load the golf data that belongs with this page, so the caddie can't answer. Reload in a minute; if it stays like this, the site needs republishing.");
+    return;
+  }
+  if (!WORKER) { showOffline(); return; }
+  if (store.get()) showChat(); else showGate();
+}
+boot();
+})();
+</script>
+</body>
+</html>
